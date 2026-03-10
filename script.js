@@ -25,36 +25,75 @@ async function loadPhotos() {
     }
 }
 
-// 文件选择处理 - 上传到服务器
-fileInput.addEventListener('change', async (e) => {
-    const files = Array.from(e.target.files);
+// 图片压缩（最大宽高 1920px，质量 0.85）
+function compressImage(file) {
+    return new Promise((resolve) => {
+        const maxSize = 1920;
+        const quality = 0.85;
+        const img = new Image();
+        const url = URL.createObjectURL(file);
 
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+
+            let { width, height } = img;
+            if (width <= maxSize && height <= maxSize) {
+                resolve(file); // 不需要压缩
+                return;
+            }
+
+            if (width > height) {
+                height = Math.round((height * maxSize) / width);
+                width = maxSize;
+            } else {
+                width = Math.round((width * maxSize) / height);
+                height = maxSize;
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob(resolve, file.type, quality);
+        };
+
+        img.src = url;
+    });
+}
+
+// 文件选择处理 - 压缩后上传到服务器
+fileInput.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
     if (files.length === 0) return;
 
-    const formData = new FormData();
-    files.forEach(file => {
-        if (file.type.startsWith('image/')) {
-            formData.append('photos', file);
-        }
-    });
+    const uploadBtn = document.querySelector('.upload-btn');
+    uploadBtn.textContent = '压缩中...';
+    uploadBtn.style.pointerEvents = 'none';
 
     try {
-        const response = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData
-        });
+        const formData = new FormData();
+        for (const file of files) {
+            const compressed = await compressImage(file);
+            formData.append('photos', compressed, file.name);
+        }
+
+        uploadBtn.textContent = '上传中...';
+        const response = await fetch('/api/upload', { method: 'POST', body: formData });
 
         if (response.ok) {
-            await loadPhotos(); // 重新加载所有图片
+            await loadPhotos();
         } else {
             alert('上传失败，请重试');
         }
     } catch (error) {
         console.error('上传失败:', error);
         alert('上传失败，请检查网络连接');
+    } finally {
+        uploadBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg> 上传图片`;
+        uploadBtn.style.pointerEvents = 'auto';
+        fileInput.value = '';
     }
-
-    fileInput.value = '';
 });
 
 // 渲染相册
@@ -67,8 +106,10 @@ function renderGallery() {
         card.style.animationDelay = `${index * 0.1}s`;
 
         const img = document.createElement('img');
-        img.src = photo.src;
+        img.dataset.src = photo.src;
+        img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
         img.alt = photo.name;
+        img.classList.add('lazy');
 
         const cardInfo = document.createElement('div');
         cardInfo.className = 'card-info';
@@ -100,6 +141,20 @@ function renderGallery() {
 
         gallery.appendChild(card);
     });
+
+    // 懒加载：观察所有 .lazy 图片
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                img.src = img.dataset.src;
+                img.classList.remove('lazy');
+                observer.unobserve(img);
+            }
+        });
+    }, { rootMargin: '100px' });
+
+    document.querySelectorAll('img.lazy').forEach(img => observer.observe(img));
 }
 
 // 打开灯箱
