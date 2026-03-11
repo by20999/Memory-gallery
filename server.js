@@ -3,6 +3,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+// 删除密码，可通过环境变量 DELETE_PASSWORD 修改，默认 "123456"
+const DELETE_PASSWORD = process.env.DELETE_PASSWORD || '123456';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -38,7 +40,8 @@ function getPhotoMeta(photoId, photoData) {
     const data = photoData[photoId] || { likes: 0, comments: [] };
     return {
         likes: data.likes || 0,
-        commentsCount: Array.isArray(data.comments) ? data.comments.length : 0
+        commentsCount: Array.isArray(data.comments) ? data.comments.length : 0,
+        reactions: data.reactions || {}
     };
 }
 
@@ -46,7 +49,8 @@ function getPhotoDetails(photoId, photoData) {
     const data = photoData[photoId] || { likes: 0, comments: [] };
     return {
         likes: data.likes || 0,
-        comments: Array.isArray(data.comments) ? data.comments : []
+        comments: Array.isArray(data.comments) ? data.comments : [],
+        reactions: data.reactions || {}
     };
 }
 
@@ -98,7 +102,8 @@ app.get('/api/photos', (req, res) => {
                     name: file,
                     uploadTime: stats.mtime,
                     likes: meta.likes,
-                    commentsCount: meta.commentsCount
+                    commentsCount: meta.commentsCount,
+                    reactions: meta.reactions
                 };
             })
             .sort((a, b) => b.uploadTime - a.uploadTime);
@@ -123,7 +128,8 @@ app.get('/api/photos/:id', (req, res) => {
         id: photoId,
         src: `/uploads/${photoId}`,
         likes: details.likes,
-        comments: details.comments
+        comments: details.comments,
+        reactions: details.reactions
     });
 });
 
@@ -145,6 +151,12 @@ app.post('/api/upload', upload.array('photos', 10), (req, res) => {
 // 删除图片
 app.delete('/api/photos/:id', (req, res) => {
     const photoId = req.params.id;
+    const { password } = req.body;
+
+    if (!password || password !== DELETE_PASSWORD) {
+        return res.status(403).json({ error: '密码错误' });
+    }
+
     const filePath = path.join(uploadDir, photoId);
 
     fs.unlink(filePath, (err) => {
@@ -174,6 +186,30 @@ app.post('/api/photos/:id/like', (req, res) => {
     savePhotoData(photoData);
 
     res.json({ success: true, likes: photoData[photoId].likes });
+});
+
+// 表情回应
+app.post('/api/photos/:id/react', (req, res) => {
+    const photoId = req.params.id;
+    const { emoji } = req.body;
+    const allowed = ['❤️', '😂', '😮', '😢', '👍'];
+
+    if (!emoji || !allowed.includes(emoji)) {
+        return res.status(400).json({ error: '无效的表情' });
+    }
+
+    const photoData = loadPhotoData();
+    if (!photoData[photoId]) {
+        photoData[photoId] = { likes: 0, comments: [], reactions: {} };
+    }
+    if (!photoData[photoId].reactions) {
+        photoData[photoId].reactions = {};
+    }
+
+    photoData[photoId].reactions[emoji] = (photoData[photoId].reactions[emoji] || 0) + 1;
+    savePhotoData(photoData);
+
+    res.json({ success: true, reactions: photoData[photoId].reactions });
 });
 
 // 添加评论

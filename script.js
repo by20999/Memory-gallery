@@ -2,20 +2,89 @@ let photos = [];
 let currentPhotoIndex = null;
 let galleryObserver = null;
 
+// 当前图片的滤镜和编辑状态
+let currentFilter = 'none';
+let currentEdit = { brightness: 100, contrast: 100, saturate: 100, blur: 0 };
+
 const fileInput = document.getElementById('fileInput');
 const gallery = document.getElementById('gallery');
 const lightbox = document.getElementById('lightbox');
 const lightboxImg = document.getElementById('lightboxImg');
 const closeBtn = document.querySelector('.close');
 const deleteBtn = document.getElementById('deleteBtn');
-const likeBtn = document.getElementById('likeBtn');
-const likeCount = document.getElementById('likeCount');
 const submitCommentBtn = document.getElementById('submitComment');
 const commentInput = document.getElementById('commentInput');
 const authorInput = document.getElementById('authorInput');
 const commentsList = document.getElementById('commentsList');
 
-// 从服务器加载图片
+// ===== 主题系统 =====
+const THEME_KEY = 'album_theme';
+const GRADIENT_KEY = 'album_gradient';
+
+function initTheme() {
+    const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
+    const savedGradient = localStorage.getItem(GRADIENT_KEY);
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeIcon(savedTheme);
+    if (savedGradient) {
+        document.body.style.background = savedGradient;
+        syncActivePreset(savedGradient);
+    }
+}
+
+function updateThemeIcon(theme) {
+    document.querySelector('.theme-icon').textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+
+document.getElementById('themeToggleBtn').addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem(THEME_KEY, next);
+    updateThemeIcon(next);
+});
+
+document.getElementById('themePanelBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('themeDropdown').classList.toggle('open');
+});
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.theme-panel')) {
+        document.getElementById('themeDropdown').classList.remove('open');
+    }
+});
+
+// 预设主题色
+document.querySelectorAll('.theme-preset').forEach(preset => {
+    const gradient = preset.dataset.gradient;
+    preset.style.background = gradient;
+    preset.addEventListener('click', () => {
+        applyGradient(gradient);
+        syncActivePreset(gradient);
+    });
+});
+
+function applyGradient(gradient) {
+    document.body.style.background = gradient;
+    localStorage.setItem(GRADIENT_KEY, gradient);
+}
+
+function syncActivePreset(gradient) {
+    document.querySelectorAll('.theme-preset').forEach(p => {
+        p.classList.toggle('active', p.dataset.gradient === gradient);
+    });
+}
+
+document.getElementById('applyColorBtn').addEventListener('click', () => {
+    const c1 = document.getElementById('colorStart').value;
+    const c2 = document.getElementById('colorEnd').value;
+    const gradient = `linear-gradient(135deg, ${c1} 0%, ${c2} 100%)`;
+    applyGradient(gradient);
+    syncActivePreset(gradient);
+});
+
+// ===== 图片加载 =====
 async function loadPhotos() {
     try {
         const response = await fetch('/api/photos');
@@ -28,13 +97,11 @@ async function loadPhotos() {
 
 async function loadPhotoDetails(photoId) {
     const response = await fetch(`/api/photos/${photoId}`);
-    if (!response.ok) {
-        throw new Error('加载图片详情失败');
-    }
+    if (!response.ok) throw new Error('加载图片详情失败');
     return response.json();
 }
 
-// 图片压缩（最大宽高 1920px，质量 0.85）
+// ===== 图片压缩 =====
 function compressImage(file) {
     return new Promise((resolve) => {
         const maxSize = 1920;
@@ -44,13 +111,8 @@ function compressImage(file) {
 
         img.onload = () => {
             URL.revokeObjectURL(url);
-
             let { width, height } = img;
-            if (width <= maxSize && height <= maxSize) {
-                resolve(file); // 不需要压缩
-                return;
-            }
-
+            if (width <= maxSize && height <= maxSize) { resolve(file); return; }
             if (width > height) {
                 height = Math.round((height * maxSize) / width);
                 width = maxSize;
@@ -58,20 +120,17 @@ function compressImage(file) {
                 width = Math.round((width * maxSize) / height);
                 height = maxSize;
             }
-
             const canvas = document.createElement('canvas');
             canvas.width = width;
             canvas.height = height;
             canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-
             canvas.toBlob(resolve, file.type, quality);
         };
-
         img.src = url;
     });
 }
 
-// 文件选择处理 - 压缩后上传到服务器
+// ===== 文件上传 =====
 fileInput.addEventListener('change', async (e) => {
     const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
     if (files.length === 0) return;
@@ -86,10 +145,8 @@ fileInput.addEventListener('change', async (e) => {
             const compressed = await compressImage(file);
             formData.append('photos', compressed, file.name);
         }
-
         uploadBtn.textContent = '上传中...';
         const response = await fetch('/api/upload', { method: 'POST', body: formData });
-
         if (response.ok) {
             await loadPhotos();
         } else {
@@ -105,7 +162,7 @@ fileInput.addEventListener('change', async (e) => {
     }
 });
 
-// 渲染相册
+// ===== 渲染相册 =====
 function renderGallery() {
     gallery.innerHTML = '';
 
@@ -123,37 +180,38 @@ function renderGallery() {
         const cardInfo = document.createElement('div');
         cardInfo.className = 'card-info';
 
-        const likesCount = document.createElement('div');
-        likesCount.className = 'likes-count';
-        likesCount.innerHTML = `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-            </svg>
-            <span>${photo.likes || 0}</span>
-        `;
+        // 表情摘要（取前3个有数量的表情）
+        const reactions = photo.reactions || {};
+        const emojiMap = { '❤️': 'heart', '😂': 'laugh', '😮': 'wow', '😢': 'sad', '👍': 'like' };
+        const reactionSummary = Object.entries(emojiMap)
+            .filter(([emoji]) => reactions[emoji] > 0)
+            .slice(0, 3)
+            .map(([emoji]) => emoji)
+            .join('');
 
-        const commentsCount = document.createElement('div');
-        commentsCount.className = 'comments-count';
-        commentsCount.innerHTML = `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            <span>${photo.commentsCount || 0}</span>
+        cardInfo.innerHTML = `
+            <div class="likes-count">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+                <span>${photo.likes || 0}</span>
+            </div>
+            <div class="comments-count">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span>${photo.commentsCount || 0}</span>
+            </div>
+            ${reactionSummary ? `<div class="card-reactions">${reactionSummary}</div>` : ''}
         `;
-
-        cardInfo.appendChild(likesCount);
-        cardInfo.appendChild(commentsCount);
 
         card.appendChild(img);
         card.appendChild(cardInfo);
         card.addEventListener('click', () => openLightbox(index));
-
         gallery.appendChild(card);
     });
 
-    if (galleryObserver) {
-        galleryObserver.disconnect();
-    }
+    if (galleryObserver) galleryObserver.disconnect();
 
     galleryObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -169,24 +227,31 @@ function renderGallery() {
     document.querySelectorAll('img.lazy').forEach(img => galleryObserver.observe(img));
 }
 
-// 打开灯箱
+// ===== 灯箱 =====
 async function openLightbox(index) {
     currentPhotoIndex = index;
     const photo = photos[index];
 
     lightboxImg.src = photo.src;
-    likeCount.textContent = photo.likes || 0;
-    commentsList.innerHTML = '<p style="color: #999; text-align: center;">评论加载中...</p>';
+    lightboxImg.style.filter = '';
+    currentFilter = 'none';
+    currentEdit = { brightness: 100, contrast: 100, saturate: 100, blur: 0 };
+    resetEditSliders();
+    resetFilterBtns();
 
+    commentsList.innerHTML = '<p style="color: #999; text-align: center;">评论加载中...</p>';
     lightbox.classList.add('active');
     document.body.style.overflow = 'hidden';
+
+    updateReactionUI(photo.reactions || {});
 
     try {
         const details = await loadPhotoDetails(photo.id);
         photos[index].likes = details.likes || 0;
         photos[index].comments = details.comments || [];
         photos[index].commentsCount = details.comments?.length || 0;
-        likeCount.textContent = photos[index].likes;
+        photos[index].reactions = details.reactions || {};
+        updateReactionUI(photos[index].reactions);
         renderComments(photos[index].comments);
         renderGallery();
     } catch (error) {
@@ -195,7 +260,143 @@ async function openLightbox(index) {
     }
 }
 
-// 渲染评论列表
+function closeLightbox() {
+    lightbox.classList.remove('active');
+    document.body.style.overflow = 'auto';
+    currentPhotoIndex = null;
+    commentInput.value = '';
+    authorInput.value = '';
+}
+
+// ===== 滤镜 =====
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        currentFilter = btn.dataset.filter;
+        applyImageStyle();
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    });
+});
+
+function resetFilterBtns() {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.filter-btn[data-filter="none"]').classList.add('active');
+}
+
+// ===== 图片编辑 =====
+const sliders = [
+    { id: 'editBrightness', valId: 'brightnessVal', key: 'brightness', unit: '%' },
+    { id: 'editContrast',   valId: 'contrastVal',   key: 'contrast',   unit: '%' },
+    { id: 'editSaturate',   valId: 'saturateVal',   key: 'saturate',   unit: '%' },
+    { id: 'editBlur',       valId: 'blurVal',       key: 'blur',       unit: 'px' },
+];
+
+sliders.forEach(({ id, valId, key, unit }) => {
+    const input = document.getElementById(id);
+    const valSpan = document.getElementById(valId);
+    input.addEventListener('input', () => {
+        currentEdit[key] = Number(input.value);
+        valSpan.textContent = input.value + unit;
+        applyImageStyle();
+    });
+});
+
+function applyImageStyle() {
+    const { brightness, contrast, saturate, blur } = currentEdit;
+    const editFilter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) blur(${blur}px)`;
+    const combined = currentFilter === 'none'
+        ? editFilter
+        : `${currentFilter} ${editFilter}`;
+    lightboxImg.style.filter = combined;
+}
+
+function resetEditSliders() {
+    sliders.forEach(({ id, valId, key, unit }) => {
+        const defaults = { brightness: 100, contrast: 100, saturate: 100, blur: 0 };
+        document.getElementById(id).value = defaults[key];
+        document.getElementById(valId).textContent = defaults[key] + unit;
+    });
+}
+
+document.getElementById('resetEditBtn').addEventListener('click', () => {
+    currentEdit = { brightness: 100, contrast: 100, saturate: 100, blur: 0 };
+    currentFilter = 'none';
+    resetEditSliders();
+    resetFilterBtns();
+    lightboxImg.style.filter = '';
+});
+
+document.getElementById('saveEditBtn').addEventListener('click', () => {
+    // 将当前滤镜效果渲染到 canvas 并触发下载
+    const img = lightboxImg;
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.filter = lightboxImg.style.filter || 'none';
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `edited_${Date.now()}.jpg`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }, 'image/jpeg', 0.92);
+});
+
+// ===== 表情回应 =====
+const emojiToId = { '❤️': 'react-heart', '😂': 'react-laugh', '😮': 'react-wow', '😢': 'react-sad', '👍': 'react-like' };
+const reactedKey = (photoId) => `reacted_${photoId}`;
+
+function updateReactionUI(reactions) {
+    if (currentPhotoIndex === null) return;
+    const photo = photos[currentPhotoIndex];
+    const reacted = JSON.parse(localStorage.getItem(reactedKey(photo.id)) || 'null');
+
+    Object.entries(emojiToId).forEach(([emoji, elId]) => {
+        const el = document.getElementById(elId);
+        if (el) el.textContent = reactions[emoji] || 0;
+    });
+
+    document.querySelectorAll('.reaction-btn').forEach(btn => {
+        btn.classList.toggle('reacted', btn.dataset.emoji === reacted);
+    });
+}
+
+document.querySelectorAll('.reaction-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        if (currentPhotoIndex === null) return;
+        const photo = photos[currentPhotoIndex];
+        const emoji = btn.dataset.emoji;
+        const alreadyReacted = localStorage.getItem(reactedKey(photo.id));
+
+        // 已经点过同一个表情，不重复提交
+        if (alreadyReacted === JSON.stringify(emoji)) return;
+
+        try {
+            const response = await fetch(`/api/photos/${photo.id}/react`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ emoji })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                photos[currentPhotoIndex].reactions = data.reactions;
+                localStorage.setItem(reactedKey(photo.id), JSON.stringify(emoji));
+                updateReactionUI(data.reactions);
+                renderGallery();
+
+                btn.classList.add('pop');
+                setTimeout(() => btn.classList.remove('pop'), 300);
+            }
+        } catch (error) {
+            console.error('表情回应失败:', error);
+        }
+    });
+});
+
+// ===== 评论 =====
 function renderComments(comments) {
     commentsList.innerHTML = '';
 
@@ -209,10 +410,7 @@ function renderComments(comments) {
         commentItem.className = 'comment-item';
 
         const timeStr = new Date(comment.time).toLocaleString('zh-CN', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
+            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
         });
 
         commentItem.innerHTML = `
@@ -223,64 +421,20 @@ function renderComments(comments) {
             <div class="comment-text">${comment.text}</div>
             <button class="comment-delete" data-comment-id="${comment.id}">删除</button>
         `;
-
         commentsList.appendChild(commentItem);
     });
 
-    // 绑定删除评论事件
     document.querySelectorAll('.comment-delete').forEach(btn => {
         btn.addEventListener('click', async (e) => {
-            const commentId = e.target.dataset.commentId;
-            await deleteComment(commentId);
+            await deleteComment(e.target.dataset.commentId);
         });
     });
 }
 
-// 关闭灯箱
-function closeLightbox() {
-    lightbox.classList.remove('active');
-    document.body.style.overflow = 'auto';
-    currentPhotoIndex = null;
-    commentInput.value = '';
-    authorInput.value = '';
-}
-
-// 点赞图片
-async function likePhoto() {
-    if (currentPhotoIndex === null) return;
-
-    const photo = photos[currentPhotoIndex];
-
-    try {
-        const response = await fetch(`/api/photos/${photo.id}/like`, {
-            method: 'POST'
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            photos[currentPhotoIndex].likes = data.likes;
-            likeCount.textContent = data.likes;
-
-            // 添加点赞动画
-            likeBtn.classList.add('liked');
-            setTimeout(() => likeBtn.classList.remove('liked'), 300);
-
-            renderGallery();
-        }
-    } catch (error) {
-        console.error('点赞失败:', error);
-    }
-}
-
-// 提交评论
 async function submitComment() {
     if (currentPhotoIndex === null) return;
-
     const text = commentInput.value.trim();
-    if (!text) {
-        alert('请输入评论内容');
-        return;
-    }
+    if (!text) { alert('请输入评论内容'); return; }
 
     const photo = photos[currentPhotoIndex];
     const author = authorInput.value.trim() || '匿名';
@@ -297,10 +451,8 @@ async function submitComment() {
             photos[currentPhotoIndex].comments = photos[currentPhotoIndex].comments || [];
             photos[currentPhotoIndex].comments.push(data.comment);
             photos[currentPhotoIndex].commentsCount = photos[currentPhotoIndex].comments.length;
-
             renderComments(photos[currentPhotoIndex].comments);
             renderGallery();
-
             commentInput.value = '';
             authorInput.value = '';
         }
@@ -310,23 +462,15 @@ async function submitComment() {
     }
 }
 
-// 删除评论
 async function deleteComment(commentId) {
     if (currentPhotoIndex === null) return;
-
     const photo = photos[currentPhotoIndex];
 
     try {
-        const response = await fetch(`/api/photos/${photo.id}/comment/${commentId}`, {
-            method: 'DELETE'
-        });
-
+        const response = await fetch(`/api/photos/${photo.id}/comment/${commentId}`, { method: 'DELETE' });
         if (response.ok) {
-            photos[currentPhotoIndex].comments = (photos[currentPhotoIndex].comments || []).filter(
-                c => c.id !== commentId
-            );
+            photos[currentPhotoIndex].comments = (photos[currentPhotoIndex].comments || []).filter(c => c.id !== commentId);
             photos[currentPhotoIndex].commentsCount = photos[currentPhotoIndex].comments.length;
-
             renderComments(photos[currentPhotoIndex].comments);
             renderGallery();
         }
@@ -336,62 +480,90 @@ async function deleteComment(commentId) {
     }
 }
 
-// 删除图片 - 从服务器删除
-async function deletePhoto() {
-    if (currentPhotoIndex !== null) {
-        const photo = photos[currentPhotoIndex];
+// ===== 删除图片（密码保护）=====
+const pwdModal = document.getElementById('pwdModal');
+const pwdInput = document.getElementById('pwdInput');
+const pwdError = document.getElementById('pwdError');
 
-        try {
-            const response = await fetch(`/api/photos/${photo.id}`, {
-                method: 'DELETE'
-            });
-
-            if (response.ok) {
-                await loadPhotos(); // 重新加载图片列表
-                closeLightbox();
-            } else {
-                alert('删除失败，请重试');
-            }
-        } catch (error) {
-            console.error('删除失败:', error);
-            alert('删除失败，请检查网络连接');
-        }
-    }
+function openPwdModal() {
+    pwdInput.value = '';
+    pwdError.textContent = '';
+    pwdModal.classList.add('open');
+    setTimeout(() => pwdInput.focus(), 100);
 }
 
-// 事件监听
+function closePwdModal() {
+    pwdModal.classList.remove('open');
+}
+
+document.getElementById('pwdCancelBtn').addEventListener('click', closePwdModal);
+
+pwdModal.addEventListener('click', (e) => {
+    if (e.target === pwdModal) closePwdModal();
+});
+
+pwdInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('pwdConfirmBtn').click();
+    if (e.key === 'Escape') closePwdModal();
+});
+
+document.getElementById('pwdConfirmBtn').addEventListener('click', async () => {
+    const password = pwdInput.value;
+    if (!password) { pwdError.textContent = '请输入密码'; return; }
+    if (currentPhotoIndex === null) { closePwdModal(); return; }
+
+    const photo = photos[currentPhotoIndex];
+
+    try {
+        const response = await fetch(`/api/photos/${photo.id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+
+        if (response.ok) {
+            closePwdModal();
+            await loadPhotos();
+            closeLightbox();
+        } else {
+            const data = await response.json();
+            pwdError.textContent = data.error || '密码错误';
+            pwdInput.value = '';
+            pwdInput.focus();
+        }
+    } catch (error) {
+        console.error('删除失败:', error);
+        pwdError.textContent = '网络错误，请重试';
+    }
+});
+
+async function deletePhoto() {
+    if (currentPhotoIndex === null) return;
+    openPwdModal();
+}
+
+// ===== 事件绑定 =====
 closeBtn.addEventListener('click', closeLightbox);
 deleteBtn.addEventListener('click', deletePhoto);
-likeBtn.addEventListener('click', likePhoto);
 submitCommentBtn.addEventListener('click', submitComment);
 
-// 回车提交评论
 commentInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && e.ctrlKey) {
-        submitComment();
-    }
+    if (e.key === 'Enter' && e.ctrlKey) submitComment();
 });
 
 lightbox.addEventListener('click', (e) => {
-    if (e.target === lightbox) {
-        closeLightbox();
-    }
+    if (e.target === lightbox) closeLightbox();
 });
 
-// 键盘快捷键
 document.addEventListener('keydown', (e) => {
     if (lightbox.classList.contains('active')) {
-        if (e.key === 'Escape') {
-            closeLightbox();
-        } else if (e.key === 'Delete') {
-            deletePhoto();
-        } else if (e.key === 'ArrowLeft' && currentPhotoIndex > 0) {
-            openLightbox(currentPhotoIndex - 1);
-        } else if (e.key === 'ArrowRight' && currentPhotoIndex < photos.length - 1) {
-            openLightbox(currentPhotoIndex + 1);
-        }
+        if (e.key === 'Escape') closeLightbox();
+        else if (e.key === 'Delete') deletePhoto();
+        else if (e.key === 'ArrowLeft' && currentPhotoIndex > 0) openLightbox(currentPhotoIndex - 1);
+        else if (e.key === 'ArrowRight' && currentPhotoIndex < photos.length - 1) openLightbox(currentPhotoIndex + 1);
     }
 });
 
-// 页面加载时加载图片
+// ===== 初始化 =====
+initTheme();
 loadPhotos();

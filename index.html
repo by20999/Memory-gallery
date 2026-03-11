@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,33 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- 主题控制面板 -->
+    <div class="theme-panel" id="themePanel">
+        <button class="theme-toggle-btn" id="themeToggleBtn" title="切换深色/浅色模式">
+            <span class="theme-icon">🌙</span>
+        </button>
+        <button class="theme-panel-btn" id="themePanelBtn" title="自定义主题">
+            <span>🎨</span>
+        </button>
+        <div class="theme-dropdown" id="themeDropdown">
+            <div class="theme-dropdown-title">背景主题</div>
+            <div class="theme-presets">
+                <div class="theme-preset active" data-gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" title="紫色（默认）"></div>
+                <div class="theme-preset" data-gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" title="粉红"></div>
+                <div class="theme-preset" data-gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" title="天蓝"></div>
+                <div class="theme-preset" data-gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)" title="翠绿"></div>
+                <div class="theme-preset" data-gradient="linear-gradient(135deg, #fa709a 0%, #fee140 100%)" title="橙粉"></div>
+                <div class="theme-preset" data-gradient="linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)" title="薰衣草"></div>
+            </div>
+            <div class="theme-dropdown-title" style="margin-top:12px">自定义颜色</div>
+            <div class="custom-color-row">
+                <label>起始色 <input type="color" id="colorStart" value="#667eea"></label>
+                <label>结束色 <input type="color" id="colorEnd" value="#764ba2"></label>
+            </div>
+            <button class="apply-color-btn" id="applyColorBtn">应用</button>
+        </div>
+    </div>
+
     <div class="container">
         <header>
             <h1>✨ 我的相册</h1>
@@ -29,15 +56,49 @@
     <div class="lightbox" id="lightbox">
         <span class="close">&times;</span>
         <div class="lightbox-content">
-            <img src="" alt="" id="lightboxImg">
+            <div class="lightbox-img-wrap">
+                <img src="" alt="" id="lightboxImg">
+                <!-- 图片滤镜覆盖层 -->
+                <div class="filter-overlay" id="filterOverlay"></div>
+            </div>
+
+            <!-- 滤镜工具栏 -->
+            <div class="filter-bar" id="filterBar">
+                <button class="filter-btn active" data-filter="none">原图</button>
+                <button class="filter-btn" data-filter="grayscale(100%)">黑白</button>
+                <button class="filter-btn" data-filter="sepia(80%)">复古</button>
+                <button class="filter-btn" data-filter="saturate(200%) hue-rotate(20deg)">鲜艳</button>
+                <button class="filter-btn" data-filter="brightness(1.2) contrast(1.1)">明亮</button>
+                <button class="filter-btn" data-filter="contrast(1.4) saturate(0.8)">冷峻</button>
+                <button class="filter-btn" data-filter="hue-rotate(180deg) saturate(1.5)">赛博</button>
+            </div>
+
+            <!-- 图片编辑工具栏 -->
+            <div class="edit-bar" id="editBar">
+                <div class="edit-bar-title">✏️ 图片调整</div>
+                <div class="edit-sliders">
+                    <label>亮度 <input type="range" id="editBrightness" min="50" max="200" value="100"><span id="brightnessVal">100%</span></label>
+                    <label>对比度 <input type="range" id="editContrast" min="50" max="200" value="100"><span id="contrastVal">100%</span></label>
+                    <label>饱和度 <input type="range" id="editSaturate" min="0" max="300" value="100"><span id="saturateVal">100%</span></label>
+                    <label>模糊 <input type="range" id="editBlur" min="0" max="10" value="0"><span id="blurVal">0px</span></label>
+                </div>
+                <div class="edit-actions">
+                    <button id="resetEditBtn">重置</button>
+                    <button id="saveEditBtn" class="save-edit-btn">保存效果</button>
+                </div>
+            </div>
 
             <div class="photo-actions">
-                <button class="like-btn" id="likeBtn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                    </svg>
-                    <span id="likeCount">0</span>
-                </button>
+                <!-- 表情回应区 -->
+                <div class="reactions-wrap">
+                    <div class="reaction-btns" id="reactionBtns">
+                        <button class="reaction-btn" data-emoji="❤️" title="爱心"><span>❤️</span><span class="reaction-count" id="react-heart">0</span></button>
+                        <button class="reaction-btn" data-emoji="😂" title="哈哈"><span>😂</span><span class="reaction-count" id="react-laugh">0</span></button>
+                        <button class="reaction-btn" data-emoji="😮" title="哇哦"><span>😮</span><span class="reaction-count" id="react-wow">0</span></button>
+                        <button class="reaction-btn" data-emoji="😢" title="感动"><span>😢</span><span class="reaction-count" id="react-sad">0</span></button>
+                        <button class="reaction-btn" data-emoji="👍" title="点赞"><span>👍</span><span class="reaction-count" id="react-like">0</span></button>
+                    </div>
+                </div>
                 <button class="delete-btn" id="deleteBtn">删除</button>
             </div>
 
@@ -49,6 +110,19 @@
                     <button id="submitComment">发表评论</button>
                 </div>
                 <div class="comments-list" id="commentsList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除密码弹窗 -->
+    <div class="pwd-modal" id="pwdModal">
+        <div class="pwd-box">
+            <div class="pwd-title">🔒 请输入删除密码</div>
+            <input type="password" id="pwdInput" placeholder="密码" maxlength="32" autocomplete="off">
+            <div class="pwd-error" id="pwdError"></div>
+            <div class="pwd-actions">
+                <button id="pwdCancelBtn">取消</button>
+                <button id="pwdConfirmBtn" class="pwd-confirm">确认删除</button>
             </div>
         </div>
     </div>
