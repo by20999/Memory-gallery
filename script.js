@@ -1,5 +1,6 @@
 let photos = [];
 let currentPhotoIndex = null;
+let galleryObserver = null;
 
 const fileInput = document.getElementById('fileInput');
 const gallery = document.getElementById('gallery');
@@ -23,6 +24,14 @@ async function loadPhotos() {
     } catch (error) {
         console.error('加载图片失败:', error);
     }
+}
+
+async function loadPhotoDetails(photoId) {
+    const response = await fetch(`/api/photos/${photoId}`);
+    if (!response.ok) {
+        throw new Error('加载图片详情失败');
+    }
+    return response.json();
 }
 
 // 图片压缩（最大宽高 1920px，质量 0.85）
@@ -129,7 +138,7 @@ function renderGallery() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
-            <span>${photo.comments?.length || 0}</span>
+            <span>${photo.commentsCount || 0}</span>
         `;
 
         cardInfo.appendChild(likesCount);
@@ -142,33 +151,48 @@ function renderGallery() {
         gallery.appendChild(card);
     });
 
-    // 懒加载：观察所有 .lazy 图片
-    const observer = new IntersectionObserver((entries) => {
+    if (galleryObserver) {
+        galleryObserver.disconnect();
+    }
+
+    galleryObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 const img = entry.target;
                 img.src = img.dataset.src;
                 img.classList.remove('lazy');
-                observer.unobserve(img);
+                galleryObserver.unobserve(img);
             }
         });
-    }, { rootMargin: '100px' });
+    }, { rootMargin: '300px 0px' });
 
-    document.querySelectorAll('img.lazy').forEach(img => observer.observe(img));
+    document.querySelectorAll('img.lazy').forEach(img => galleryObserver.observe(img));
 }
 
 // 打开灯箱
-function openLightbox(index) {
+async function openLightbox(index) {
     currentPhotoIndex = index;
     const photo = photos[index];
 
     lightboxImg.src = photo.src;
     likeCount.textContent = photo.likes || 0;
-
-    renderComments(photo.comments || []);
+    commentsList.innerHTML = '<p style="color: #999; text-align: center;">评论加载中...</p>';
 
     lightbox.classList.add('active');
     document.body.style.overflow = 'hidden';
+
+    try {
+        const details = await loadPhotoDetails(photo.id);
+        photos[index].likes = details.likes || 0;
+        photos[index].comments = details.comments || [];
+        photos[index].commentsCount = details.comments?.length || 0;
+        likeCount.textContent = photos[index].likes;
+        renderComments(photos[index].comments);
+        renderGallery();
+    } catch (error) {
+        commentsList.innerHTML = '<p style="color: #ff4757; text-align: center;">评论加载失败，请重试</p>';
+        console.error('加载详情失败:', error);
+    }
 }
 
 // 渲染评论列表
@@ -270,7 +294,9 @@ async function submitComment() {
 
         if (response.ok) {
             const data = await response.json();
+            photos[currentPhotoIndex].comments = photos[currentPhotoIndex].comments || [];
             photos[currentPhotoIndex].comments.push(data.comment);
+            photos[currentPhotoIndex].commentsCount = photos[currentPhotoIndex].comments.length;
 
             renderComments(photos[currentPhotoIndex].comments);
             renderGallery();
@@ -296,9 +322,10 @@ async function deleteComment(commentId) {
         });
 
         if (response.ok) {
-            photos[currentPhotoIndex].comments = photos[currentPhotoIndex].comments.filter(
+            photos[currentPhotoIndex].comments = (photos[currentPhotoIndex].comments || []).filter(
                 c => c.id !== commentId
             );
+            photos[currentPhotoIndex].commentsCount = photos[currentPhotoIndex].comments.length;
 
             renderComments(photos[currentPhotoIndex].comments);
             renderGallery();

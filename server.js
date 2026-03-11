@@ -15,8 +15,11 @@ if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// 数据文件路径
-const dataFile = path.join(__dirname, 'photo-data.json');
+// 数据文件路径 - 放到持久化目录中
+const dataDir = process.env.RAILWAY_VOLUME_MOUNT_PATH
+    ? process.env.RAILWAY_VOLUME_MOUNT_PATH
+    : __dirname;
+const dataFile = path.join(dataDir, 'photo-data.json');
 
 // 读取照片数据（点赞和评论）
 function loadPhotoData() {
@@ -29,6 +32,22 @@ function loadPhotoData() {
 // 保存照片数据
 function savePhotoData(data) {
     fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
+}
+
+function getPhotoMeta(photoId, photoData) {
+    const data = photoData[photoId] || { likes: 0, comments: [] };
+    return {
+        likes: data.likes || 0,
+        commentsCount: Array.isArray(data.comments) ? data.comments.length : 0
+    };
+}
+
+function getPhotoDetails(photoId, photoData) {
+    const data = photoData[photoId] || { likes: 0, comments: [] };
+    return {
+        likes: data.likes || 0,
+        comments: Array.isArray(data.comments) ? data.comments : []
+    };
 }
 
 // 配置文件上传
@@ -59,7 +78,7 @@ app.use(express.static(__dirname));
 app.use('/uploads', express.static(uploadDir));
 app.use(express.json());
 
-// 获取所有图片
+// 获取所有图片（列表页只返回统计信息，加快加载）
 app.get('/api/photos', (req, res) => {
     fs.readdir(uploadDir, (err, files) => {
         if (err) {
@@ -72,19 +91,39 @@ app.get('/api/photos', (req, res) => {
             .filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file))
             .map(file => {
                 const stats = fs.statSync(path.join(uploadDir, file));
-                const data = photoData[file] || { likes: 0, comments: [] };
+                const meta = getPhotoMeta(file, photoData);
                 return {
                     id: file,
                     src: `/uploads/${file}`,
                     name: file,
                     uploadTime: stats.mtime,
-                    likes: data.likes || 0,
-                    comments: data.comments || []
+                    likes: meta.likes,
+                    commentsCount: meta.commentsCount
                 };
             })
             .sort((a, b) => b.uploadTime - a.uploadTime);
 
         res.json(photos);
+    });
+});
+
+// 获取单张图片详情（打开灯箱时再加载评论）
+app.get('/api/photos/:id', (req, res) => {
+    const photoId = req.params.id;
+    const filePath = path.join(uploadDir, photoId);
+
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: '图片不存在' });
+    }
+
+    const photoData = loadPhotoData();
+    const details = getPhotoDetails(photoId, photoData);
+
+    res.json({
+        id: photoId,
+        src: `/uploads/${photoId}`,
+        likes: details.likes,
+        comments: details.comments
     });
 });
 
@@ -185,4 +224,5 @@ app.delete('/api/photos/:photoId/comment/:commentId', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`✨ 相册服务器运行在 http://localhost:${PORT}`);
     console.log(`📁 图片保存在: ${uploadDir}`);
+    console.log(`💾 点赞评论数据保存在: ${dataFile}`);
 });
