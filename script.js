@@ -95,13 +95,17 @@ function initTheme() {
     document.documentElement.setAttribute('data-theme', savedTheme);
     updateThemeIcon(savedTheme);
     if (savedGradient) {
-        document.body.style.background = savedGradient;
+        applyGradient(savedGradient, false);
         syncActivePreset(savedGradient);
+    } else {
+        document.documentElement.style.removeProperty('--bg-gradient');
+        syncActivePreset('');
     }
 }
 
 function updateThemeIcon(theme) {
     document.querySelector('.theme-icon').textContent = theme === 'dark' ? '☀️' : '🌙';
+    document.getElementById('themeToggleBtn').title = theme === 'dark' ? '切换到白天模式' : '切换到夜晚模式';
 }
 
 document.getElementById('themeToggleBtn').addEventListener('click', () => {
@@ -133,9 +137,9 @@ document.querySelectorAll('.theme-preset').forEach(preset => {
     });
 });
 
-function applyGradient(gradient) {
-    document.body.style.background = gradient;
-    localStorage.setItem(GRADIENT_KEY, gradient);
+function applyGradient(gradient, persist = true) {
+    document.documentElement.style.setProperty('--bg-gradient', gradient);
+    if (persist) localStorage.setItem(GRADIENT_KEY, gradient);
 }
 
 function syncActivePreset(gradient) {
@@ -856,6 +860,7 @@ setInterval(() => {
         subtitleEl.style.opacity = '1';
     }, 400);
 }, 3500);
+
 
 
 

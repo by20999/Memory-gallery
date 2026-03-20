@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN" data-theme="light">
 <head>
     <meta charset="UTF-8">
@@ -18,17 +18,19 @@
         <div class="theme-dropdown" id="themeDropdown">
             <div class="theme-dropdown-title">背景主题</div>
             <div class="theme-presets">
-                <div class="theme-preset active" data-gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" title="紫色（默认）"></div>
-                <div class="theme-preset" data-gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" title="粉红"></div>
-                <div class="theme-preset" data-gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" title="天蓝"></div>
-                <div class="theme-preset" data-gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)" title="翠绿"></div>
-                <div class="theme-preset" data-gradient="linear-gradient(135deg, #fa709a 0%, #fee140 100%)" title="橙粉"></div>
-                <div class="theme-preset" data-gradient="linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)" title="薰衣草"></div>
+                <div class="theme-preset active" data-gradient="radial-gradient(circle at 18% 16%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 24%), radial-gradient(circle at 82% 14%, rgba(168,196,255,0.32) 0%, rgba(168,196,255,0) 26%), linear-gradient(180deg, #f7f9fc 0%, #eef3f9 46%, #e8edf6 100%)" title="清晨云光"></div>
+                <div class="theme-preset" data-gradient="linear-gradient(135deg, #f5f1ea 0%, #e8ded2 45%, #d8cab8 100%)" title="香槟米金"></div>
+                <div class="theme-preset" data-gradient="linear-gradient(135deg, #edf4ff 0%, #dbeafe 48%, #d8f0f4 100%)" title="雾蓝湖面"></div>
+                <div class="theme-preset" data-gradient="linear-gradient(135deg, #f8f0ff 0%, #ebe4ff 45%, #e6d7ff 100%)" title="薄雾薰衣草"></div>
+                <div class="theme-preset" data-gradient="linear-gradient(135deg, #fff6ef 0%, #ffe2d2 46%, #f7cbb8 100%)" title="日落奶杏"></div>
+                <div class="theme-preset" data-gradient="linear-gradient(135deg, #eefaf4 0%, #dff3ea 46%, #cae6de 100%)" title="鼠尾草绿"></div>
+                <div class="theme-preset" data-gradient="linear-gradient(135deg, #151a22 0%, #1d2532 46%, #283447 100%)" title="夜幕深蓝"></div>
+                <div class="theme-preset" data-gradient="linear-gradient(135deg, #161321 0%, #24203a 46%, #332e5d 100%)" title="午夜紫幕"></div>
             </div>
-            <div class="theme-dropdown-title" style="margin-top:12px">自定义颜色</div>
+            <div class="theme-dropdown-title" style="margin-top:12px">自定义渐变</div>
             <div class="custom-color-row">
-                <label>起始色 <input type="color" id="colorStart" value="#667eea"></label>
-                <label>结束色 <input type="color" id="colorEnd" value="#764ba2"></label>
+                <label>起始色 <input type="color" id="colorStart" value="#f7f9fc"></label>
+                <label>结束色 <input type="color" id="colorEnd" value="#d8e3f5"></label>
             </div>
             <button class="apply-color-btn" id="applyColorBtn">应用</button>
         </div>
@@ -186,3 +188,4 @@
     <script src="script.js"></script>
 </body>
 </html>
+
