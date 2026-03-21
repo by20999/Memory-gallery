@@ -39,7 +39,8 @@ function normalizePhotoEntry(entry = {}) {
         reactions: entry.reactions && typeof entry.reactions === 'object' ? entry.reactions : {},
         caption: typeof entry.caption === 'string' ? entry.caption.trim() : '',
         tags: normalizeTags(entry.tags),
-        order: normalizeOrder(entry.order)
+        order: normalizeOrder(entry.order),
+        groupName: typeof entry.groupName === 'string' ? entry.groupName.trim() : ''
     };
 }
 
@@ -68,7 +69,8 @@ function getPhotoMeta(photoId, photoData) {
         reactions: data.reactions,
         caption: data.caption,
         tags: data.tags,
-        order: data.order
+        order: data.order,
+        groupName: data.groupName
     };
 }
 
@@ -80,7 +82,8 @@ function getPhotoDetails(photoId, photoData) {
         reactions: data.reactions,
         caption: data.caption,
         tags: data.tags,
-        order: data.order
+        order: data.order,
+        groupName: data.groupName
     };
 }
 
@@ -148,7 +151,8 @@ app.get('/api/photos', (req, res) => {
                     reactions: meta.reactions,
                     caption: meta.caption,
                     tags: meta.tags,
-                    order: meta.order
+                    order: meta.order,
+                    groupName: meta.groupName
                 };
             });
 
@@ -182,7 +186,8 @@ app.get('/api/photos/:id', (req, res) => {
         reactions: details.reactions,
         caption: details.caption,
         tags: details.tags,
-        order: details.order
+        order: details.order,
+        groupName: details.groupName
     });
 });
 
@@ -207,7 +212,8 @@ app.post('/api/upload', upload.array('photos', 10), (req, res) => {
             ...existing,
             caption,
             tags,
-            order
+            order,
+            groupName: ''
         };
         return {
             id: file.filename,
@@ -215,7 +221,8 @@ app.post('/api/upload', upload.array('photos', 10), (req, res) => {
             name: file.originalname,
             caption,
             tags,
-            order
+            order,
+            groupName: ''
         };
     });
 
@@ -257,6 +264,40 @@ app.post('/api/photos/reorder', (req, res) => {
     });
     savePhotoData(photoData);
     res.json({ success: true });
+});
+
+app.post('/api/groups', (req, res) => {
+    const { name, photoIds } = req.body;
+    const groupName = typeof name === 'string' ? name.trim() : '';
+
+    if (!groupName) {
+        return res.status(400).json({ error: '分组名称不能为空' });
+    }
+
+    if (!Array.isArray(photoIds) || photoIds.length === 0) {
+        return res.status(400).json({ error: '请选择要加入分组的照片' });
+    }
+
+    const existingFiles = new Set(
+        fs.readdirSync(uploadDir).filter((file) => /\.(jpg|jpeg|png|gif|webp)$/i.test(file))
+    );
+
+    const hasUnknownId = photoIds.some((photoId) => !existingFiles.has(photoId));
+    if (hasUnknownId) {
+        return res.status(400).json({ error: '包含无效图片' });
+    }
+
+    const photoData = loadPhotoData();
+    photoIds.forEach((photoId) => {
+        const entry = normalizePhotoEntry(photoData[photoId]);
+        photoData[photoId] = {
+            ...entry,
+            groupName
+        };
+    });
+
+    savePhotoData(photoData);
+    res.json({ success: true, groupName, photoIds });
 });
 
 app.delete('/api/photos/:id', (req, res) => {
@@ -348,4 +389,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📁 图片保存在: ${uploadDir}`);
     console.log(`💾 点赞评论数据保存在: ${dataFile}`);
 });
+
+
+
 

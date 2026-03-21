@@ -5,7 +5,7 @@ let galleryObserver = null;
 let batchMode = false;
 let selectedIds = new Set();
 let searchKeyword = '';
-let groupMode = 'none';
+let activeGroupName = '全部图片';
 let draggedPhotoId = null;
 let dragMoved = false;
 let reorderSaving = false;
@@ -25,7 +25,8 @@ const authorInput = document.getElementById('authorInput');
 const commentsList = document.getElementById('commentsList');
 const searchInput = document.getElementById('searchInput');
 const clearSearchBtn = document.getElementById('clearSearchBtn');
-const groupToggleBtn = document.getElementById('groupToggleBtn');
+const createGroupBtn = document.getElementById('createGroupBtn');
+const groupNav = document.getElementById('groupNav');
 const searchHint = document.getElementById('searchHint');
 const captionInput = document.getElementById('captionInput');
 const tagsInput = document.getElementById('tagsInput');
@@ -347,81 +348,91 @@ function getPhotoLikeCount(photo) {
     const reactions = photo.reactions || {};
     return (photo.likes || 0) + (reactions['❤️'] || 0) + (reactions['👍'] || 0);
 }
-function getSearchableText(photo) {
-    return [photo.name, photo.caption, (photo.tags || []).join(' '), formatUploadMonth(photo.uploadTime)].join(' ').toLowerCase();
+function getPhotoGroupName(photo) {
+    return typeof photo.groupName === 'string' ? photo.groupName.trim() : '';
 }
 
-function getFilteredPhotos() {
+function getCustomGroups() {
+    return [...new Set(photos.map((photo) => getPhotoGroupName(photo)).filter(Boolean))];
+}
+
+function getSearchableText(photo) {
+    return [photo.name, photo.caption, (photo.tags || []).join(' '), getPhotoGroupName(photo), formatUploadMonth(photo.uploadTime)].join(' ').toLowerCase();
+}
+
+function getMatchedPhotos() {
     const keyword = searchKeyword.trim().toLowerCase();
     if (!keyword) return [...photos];
     return photos.filter((photo) => getSearchableText(photo).includes(keyword));
 }
 
-function buildGroups(list) {
-    if (groupMode === 'month') {
-        const monthGroups = new Map();
-        list.forEach((photo) => {
-            const key = formatUploadMonth(photo.uploadTime);
-            if (!monthGroups.has(key)) monthGroups.set(key, []);
-            monthGroups.get(key).push(photo);
+function getActiveGroupPhotos() {
+    if (activeGroupName === '全部图片') return [...photos];
+    return photos.filter((photo) => getPhotoGroupName(photo) === activeGroupName);
+}
+
+function buildGroups() {
+    if (searchKeyword.trim()) {
+        const grouped = new Map();
+        getMatchedPhotos().forEach((photo) => {
+            const key = getPhotoGroupName(photo) || '未分组';
+            if (!grouped.has(key)) grouped.set(key, []);
+            grouped.get(key).push(photo);
         });
-        return [...monthGroups.entries()].map(([title, items]) => ({ title, items }));
+        return [...grouped.entries()].map(([title, items]) => ({ title, items }));
     }
 
-    if (groupMode === 'tag') {
-        const tagGroups = new Map();
-        list.forEach((photo) => {
-            const key = photo.tags && photo.tags.length ? photo.tags[0] : '未分类';
-            if (!tagGroups.has(key)) tagGroups.set(key, []);
-            tagGroups.get(key).push(photo);
-        });
-        return [...tagGroups.entries()].map(([title, items]) => ({ title: `标签 · ${title}`, items }));
-    }
-
-    return [{ title: '', items: list }];
+    const currentPhotos = getActiveGroupPhotos();
+    return [{ title: activeGroupName === '全部图片' ? '' : activeGroupName, items: currentPhotos }];
 }
 
 function updateHeaderStats(totalCount, filteredCount) {
     const stats = document.getElementById('headerStats');
     const pieces = [`共 ${totalCount} 张照片`];
+    if (activeGroupName !== '全部图片') pieces.push(`当前分组：${activeGroupName}`);
     if (searchKeyword.trim()) pieces.push(`搜索到 ${filteredCount} 张`);
-    if (groupMode === 'month') pieces.push('按月份分组');
-    if (groupMode === 'tag') pieces.push('按标签分组');
     stats.textContent = pieces.join(' · ');
 }
 
-function updateGroupButton() {
-    const modeText = {
-        none: '分组：平铺',
-        month: '分组：月份',
-        tag: '分组：标签'
-    };
-    groupToggleBtn.textContent = modeText[groupMode];
+function renderGroupNav() {
+    const groupNames = ['全部图片', ...getCustomGroups()];
+    groupNav.innerHTML = '';
+
+    groupNames.forEach((groupName) => {
+        const button = document.createElement('button');
+        button.className = 'group-nav-btn';
+        button.type = 'button';
+        button.textContent = groupName;
+        if (groupName === activeGroupName) button.classList.add('active');
+        button.addEventListener('click', () => {
+            activeGroupName = groupName;
+            renderGallery();
+        });
+        groupNav.appendChild(button);
+    });
 }
 
 function updateSearchHint(filteredCount) {
     if (searchKeyword.trim()) {
-        searchHint.textContent = `正在搜索“${searchKeyword.trim()}”，搜索结果中已禁用拖拽排序。`;
+        searchHint.textContent = `正在搜索“${searchKeyword.trim()}”，结果会按所属分组返回，搜索结果中已禁用拖拽排序。`;
         clearSearchBtn.hidden = false;
         return;
     }
 
     if (batchMode) {
         searchHint.textContent = '批量模式下已禁用拖拽排序，避免和多选操作冲突。';
-    } else if (groupMode === 'month') {
-        searchHint.textContent = '当前按月份查看，更适合回看某一段时间的家庭照片。分组模式下已禁用拖拽。';
-    } else if (groupMode === 'tag') {
-        searchHint.textContent = '当前按标签查看，适合按场景快速收纳一组照片。分组模式下已禁用拖拽。';
+    } else if (activeGroupName !== '全部图片') {
+        searchHint.textContent = `当前正在查看“${activeGroupName}”分组。若该分组照片全部删除，导航里会自动移除它。`;
     } else if (reorderSaving) {
         searchHint.textContent = '正在保存新的照片顺序...';
     } else {
-        searchHint.textContent = `可以搜索照片名称、描述或标签，例如“生日”“旅行”“奶奶”。当前共 ${filteredCount} 张，支持鼠标拖动排序。`;
+        searchHint.textContent = `可以直接搜索分组名、照片名称、描述或标签。当前共 ${filteredCount} 张，全部图片下支持鼠标拖动排序。`;
     }
     clearSearchBtn.hidden = true;
 }
 
 function canDragReorder() {
-    return groupMode === 'none' && !batchMode && !searchKeyword.trim() && !reorderSaving;
+    return activeGroupName === '全部图片' && !batchMode && !searchKeyword.trim() && !reorderSaving;
 }
 
 function movePhotoToTarget(photoList, draggedId, targetId) {
@@ -458,23 +469,22 @@ async function persistPhotoOrder() {
 }
 
 function renderGallery() {
-    const filteredPhotos = getFilteredPhotos();
-    const groups = buildGroups(filteredPhotos);
+    const groups = buildGroups();
     visiblePhotos = groups.flatMap((group) => group.items);
     const dragEnabled = canDragReorder();
 
     gallery.innerHTML = '';
+    renderGroupNav();
     updateHeaderStats(photos.length, visiblePhotos.length);
     updateSearchHint(visiblePhotos.length);
-    updateGroupButton();
     gallery.classList.toggle('drag-enabled', dragEnabled);
 
     if (visiblePhotos.length === 0) {
         gallery.innerHTML = `
             <div class="gallery-empty">
                 <div class="gallery-empty-icon">📷</div>
-                <div class="gallery-empty-title">${searchKeyword.trim() ? '没有找到匹配的照片' : '还没有图片，快来上传第一张吧'}</div>
-                <div class="gallery-empty-desc">${searchKeyword.trim() ? '试试更短的关键词，或者换一个标签名。' : '上传时写上一句描述或标签，后面找照片会更轻松。'}</div>
+                <div class="gallery-empty-title">${searchKeyword.trim() ? '没有找到匹配的照片' : '这个分组里还没有图片'}</div>
+                <div class="gallery-empty-desc">${searchKeyword.trim() ? '试试换一个分组名、标签或更短的关键词。' : '先上传图片，或者在多选后创建一个新的分组。'}</div>
             </div>
         `;
         return;
@@ -492,7 +502,7 @@ function renderGallery() {
         if (group.title) {
             const groupTitle = document.createElement('div');
             groupTitle.className = 'gallery-group-title';
-            groupTitle.innerHTML = `<span>${group.title}</span><em>${group.items.length} 张</em>`;
+            groupTitle.innerHTML = `<span>${escapeHtml(group.title)}</span><em>${group.items.length} 张</em>`;
             gallery.appendChild(groupTitle);
         }
 
@@ -516,6 +526,7 @@ function renderGallery() {
 
             const caption = photo.caption ? `<div class="card-caption">${escapeHtml(photo.caption)}</div>` : '';
             const tags = (photo.tags || []).slice(0, 2).map((tag) => `<span class="card-tag">#${escapeHtml(tag)}</span>`).join('');
+            const groupBadge = getPhotoGroupName(photo) ? `<span class="card-tag">分组 · ${escapeHtml(getPhotoGroupName(photo))}</span>` : '';
 
             const cardInfo = document.createElement('div');
             cardInfo.className = 'card-info';
@@ -540,7 +551,7 @@ function renderGallery() {
                     ${reactionSummary ? `<div class="card-reactions">${reactionSummary}</div>` : ''}
                 </div>
                 ${caption}
-                ${tags ? `<div class="card-tags">${tags}</div>` : ''}
+                ${(tags || groupBadge) ? `<div class="card-tags">${groupBadge}${tags}</div>` : ''}
             `;
 
             card.appendChild(img);
@@ -625,6 +636,9 @@ async function loadPhotos() {
     try {
         const response = await fetch('/api/photos');
         photos = await response.json();
+        if (activeGroupName !== '全部图片' && !getCustomGroups().includes(activeGroupName)) {
+            activeGroupName = '全部图片';
+        }
         renderGallery();
     } catch (error) {
         console.error('加载图片失败:', error);
@@ -744,9 +758,12 @@ function updateNavBtns() {
 
 function renderLightboxStory(photo) {
     const tags = (photo.tags || []).map((tag) => `<span class="story-tag">#${escapeHtml(tag)}</span>`).join('');
+    const groupName = getPhotoGroupName(photo);
+    const groupBlock = groupName ? `<div class="story-tags"><span class="story-tag">分组 · ${escapeHtml(groupName)}</span></div>` : '';
     photoStory.innerHTML = `
         <div class="story-date">${formatUploadDate(photo.uploadTime) || '刚刚上传'}</div>
         ${photo.caption ? `<div class="story-caption">${escapeHtml(photo.caption)}</div>` : '<div class="story-caption empty">这张照片还没有描述，上传下一组时可以顺手写一句小故事。</div>'}
+        ${groupBlock}
         ${tags ? `<div class="story-tags">${tags}</div>` : ''}
     `;
 }
@@ -784,7 +801,8 @@ async function openLightbox(index) {
             commentsCount: details.comments?.length || 0,
             reactions: details.reactions || {},
             caption: details.caption || '',
-            tags: normalizeTags(details.tags)
+            tags: normalizeTags(details.tags),
+            groupName: details.groupName || ''
         };
         updatePhotoInStore(photo.id, merged);
         const latestPhoto = visiblePhotos[currentPhotoIndex];
@@ -1104,10 +1122,43 @@ clearSearchBtn.addEventListener('click', () => {
     renderGallery();
 });
 
-groupToggleBtn.addEventListener('click', () => {
-    const nextMode = { none: 'month', month: 'tag', tag: 'none' };
-    groupMode = nextMode[groupMode];
-    renderGallery();
+createGroupBtn.addEventListener('click', async () => {
+    if (!batchMode) {
+        enterBatchMode();
+        alert('请先多选要加入分组的照片，再点击一次“新建分组”完成创建。');
+        return;
+    }
+
+    if (selectedIds.size === 0) {
+        alert('请先选择要加入分组的照片');
+        return;
+    }
+
+    const name = window.prompt('请输入分组名称');
+    const groupName = name ? name.trim() : '';
+    if (!groupName) return;
+
+    try {
+        const response = await fetch('/api/groups', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: groupName, photoIds: [...selectedIds] })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || '创建分组失败');
+        }
+
+        activeGroupName = data.groupName;
+        searchKeyword = '';
+        searchInput.value = '';
+        exitBatchMode();
+        await loadPhotos();
+    } catch (error) {
+        console.error('创建分组失败:', error);
+        alert(error.message || '创建分组失败，请重试');
+    }
 });
 
 closeBtn.addEventListener('click', closeLightbox);
@@ -1241,5 +1292,7 @@ setInterval(() => {
 initTheme();
 initNickname();
 loadPhotos();
+
+
 
 

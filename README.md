@@ -1,20 +1,97 @@
 ﻿# 家庭共享相册
 
-一个轻量的家庭相册网站，支持上传、浏览、评论、表情回应和图片编辑。
+一个轻量但功能完整的家庭共享相册网站，基于 `Node.js + Express + 原生 HTML/CSS/JS`。适合家庭成员一起上传照片、浏览回忆、留言互动，并通过主题、标签、搜索和排序把照片整理得更有温度。
 
-## 功能
+## 当前亮点
 
-- 上传图片（多选，自动压缩到 1920px 以内）
-- 相册网格展示，一行四张，懒加载
-- 点击图片全屏预览
-- 图片滤镜（黑白、复古、鲜艳等）
-- 图片调整（亮度、对比度、饱和度、模糊）
-- 表情回应（❤️ 😂 😮 😢 👍）
-- 评论系统，只能删除自己的评论
-- 昵称系统，首次访问设置昵称，左上角显示
-- 深色/浅色模式切换
-- 自定义背景渐变色
-- 删除图片需要密码保护
+- 多图上传，前端自动压缩
+- 4 列相册网格，懒加载
+- 灯箱查看、左右切换、键盘操作
+- 图片滤镜与基础编辑
+- 评论系统、表情回应、昵称系统
+- 深色 / 浅色模式
+- 主题包：`奶油相册`、`胶片相册`、`夏日相册`
+- 节日自动推荐主题
+- 上传时支持填写照片描述和标签
+- 支持按描述 / 标签 / 文件名搜索
+- 支持分组查看：平铺 / 按月份 / 按标签
+- 平铺模式下支持鼠标拖拽排序，刷新后顺序保留
+- 批量删除与密码保护
+
+## 技术栈
+
+- 前端：原生 `HTML / CSS / JavaScript`
+- 后端：`Node.js + Express`
+- 上传：`multer`
+- 数据存储：
+  - 图片文件：`uploads/`
+  - 元数据：`photo-data.json`
+
+## 主要文件
+
+- `index.html`：页面结构
+- `style.css`：所有样式与响应式
+- `script.js`：前端交互、主题、搜索、分组、灯箱、拖拽排序
+- `server.js`：图片接口、评论、表情、删除、排序持久化
+- `uploads/`：图片目录
+- `photo-data.json`：点赞、评论、标签、描述、排序等数据
+- `CLAUDE.md`：项目约定与修改注意事项
+- `CODEX.md`：给 Codex 快速接手项目用的上下文文档
+
+## 已实现功能
+
+### 照片管理
+- 多图上传
+- 上传进度条
+- 上传前压缩（最大边 2560px，质量 0.92）
+- 上传时填写描述和标签
+- 平铺模式拖拽排序
+- 批量删除
+- 单张删除密码保护
+
+### 浏览体验
+- 4 列网格展示
+- 图片 1:1 比例裁切
+- 懒加载
+- 灯箱查看
+- 左右切换
+- 键盘方向键切换
+- 照片故事区显示日期、描述、标签
+
+### 图片互动
+- 表情回应：`❤️ 😂 😮 😢 👍`
+- 评论系统
+- 只能删除自己的评论
+- 昵称系统（首次进入必填）
+
+### 主题与外观
+- 深色 / 浅色模式
+- 预设背景渐变
+- 自定义渐变背景
+- 家庭氛围标题区
+- 节日主题推荐
+- 主题包切换
+
+### 查找与整理
+- 搜索文件名、描述、标签
+- 分组查看：平铺 / 月份 / 标签
+- 只有平铺模式允许拖拽排序
+- 搜索中禁用拖拽
+- 批量模式禁用拖拽
+
+## API
+
+```text
+GET    /api/photos
+GET    /api/photos/:id
+POST   /api/upload
+POST   /api/photos/reorder
+DELETE /api/photos/:id
+POST   /api/photos/:id/like
+POST   /api/photos/:id/react
+POST   /api/photos/:id/comment
+DELETE /api/photos/:photoId/comment/:commentId
+```
 
 ## 本地运行
 
@@ -23,51 +100,35 @@ npm install
 npm start
 ```
 
-访问 http://localhost:3000
+默认访问：`http://localhost:3000`
 
-## 部署到 Railway（推荐）
+## 重要配置
 
-1. 将代码推送到 GitHub：
-   ```bash
-   git add .
-   git commit -m "your message"
-   git push origin main
-   ```
+- 删除密码：`DELETE_PASSWORD`，默认值 `by-2099`
+- 端口：`PORT`，默认 `3000`
+- Railway 持久化目录：`RAILWAY_VOLUME_MOUNT_PATH`
+- 上传限制：单张 10MB，一次最多 10 张
 
-2. 打开 [railway.app](https://railway.app)，新建项目，选择 "Deploy from GitHub repo"，连接你的仓库
+## 拖拽排序规则
 
-3. 添加 Volume（持久化存储，否则重启后图片丢失）：
-   - 进入项目 → Add Service → Volume
-   - Mount Path 填写 `/data`
-   - 在服务的 Variables 里添加：`RAILWAY_VOLUME_MOUNT_PATH` = `/data`
+- 只在“平铺模式”允许拖拽
+- 搜索结果中禁用拖拽
+- 批量模式禁用拖拽
+- 拖拽后立即保存到后端
+- 新上传照片默认排在最前
+- 排序通过 `photo-data.json` 中的 `order` 字段持久化
 
-4. 设置环境变量（Variables 页面）：
-   - `DELETE_PASSWORD` = 你的删除密码（默认 `by-2099`）
-   - `PORT` = `3000`（Railway 会自动注入，可不填）
+## 部署
 
-5. 部署完成后 Railway 会分配一个 `.railway.app` 域名，也可以绑定自定义域名
+详细步骤见 [部署教程.md](./部署教程.md)
 
-## 更新部署
-
-每次修改代码后，推送到 GitHub 即可自动触发重新部署：
-
-```bash
-git add index.html script.js style.css server.js
-git commit -m "描述你的修改"
-git push origin main
-```
-
-## 局域网分享
-
-不想部署到云端的话，启动本地服务器后：
-
-- Windows：命令行运行 `ipconfig`，找到 IPv4 地址
-- 让家人访问 `http://你的IP:3000`，例如 `http://192.168.1.100:3000`
+Railway 部署时建议：
+- 添加 Volume 挂载 `/data`
+- 设置 `RAILWAY_VOLUME_MOUNT_PATH=/data`
+- 设置 `DELETE_PASSWORD`
 
 ## 注意事项
 
-- 图片和数据保存在 `uploads/` 和 `photo-data.json`（本地）或 Volume 挂载目录（Railway）
-- 单张图片最大 10MB，一次最多上传 10 张
-- 昵称存在浏览器 localStorage，换设备需要重新设置
-- 删除密码通过环境变量 `DELETE_PASSWORD` 配置
-
+- `photo-data.json` 现在不仅保存点赞和评论，也保存：`caption`、`tags`、`order`
+- 如果你在新对话里直接让我继续开发，优先让我看 `CODEX.md`
+- 如果要修改项目约定和注意事项，优先更新 `CLAUDE.md`

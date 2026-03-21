@@ -76,7 +76,7 @@
                 </svg>
                 多选
             </button>
-            <button class="group-toggle-btn" id="groupToggleBtn" type="button">分组：平铺</button>
+            <button class="group-toggle-btn" id="createGroupBtn" type="button">新建分组</button>
             <input type="file" id="fileInput" accept="image/*" multiple hidden>
         </div>
 
@@ -87,11 +87,13 @@
 
         <div class="album-toolbar">
             <div class="search-box">
-                <input type="search" id="searchInput" placeholder="搜索照片名称、描述或标签">
+                <input type="search" id="searchInput" placeholder="统一搜索分组、照片名称、描述或标签">
                 <button id="clearSearchBtn" type="button" hidden>清空</button>
             </div>
-            <div class="search-hint" id="searchHint">可以搜索照片名称、描述或标签，例如“生日”“旅行”“奶奶”。</div>
+            <div class="search-hint" id="searchHint">可以直接搜索分组名、照片名称、描述或标签，结果会回到对应分组里。</div>
         </div>
+
+        <nav class="group-nav" id="groupNav" aria-label="照片分组导航"></nav>
 
         <!-- 上传进度条 -->
         <div class="upload-progress-wrap" id="uploadProgressWrap">
@@ -217,5 +219,6 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
