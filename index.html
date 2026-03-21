@@ -16,7 +16,14 @@
             <span>🎨</span>
         </button>
         <div class="theme-dropdown" id="themeDropdown">
-            <div class="theme-dropdown-title">背景主题</div>
+            <div class="theme-dropdown-title">主题包</div>
+            <div class="theme-package-list">
+                <button class="theme-package-btn" data-package="cream">奶油相册</button>
+                <button class="theme-package-btn" data-package="film">胶片相册</button>
+                <button class="theme-package-btn" data-package="summer">夏日相册</button>
+            </div>
+            <button class="auto-theme-btn" id="autoThemeBtn">跟着节日自动推荐</button>
+            <div class="theme-dropdown-title" style="margin-top:12px">背景主题</div>
             <div class="theme-presets">
                 <div class="theme-preset active" data-gradient="radial-gradient(circle at 18% 16%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 24%), radial-gradient(circle at 82% 14%, rgba(168,196,255,0.32) 0%, rgba(168,196,255,0) 26%), linear-gradient(180deg, #f7f9fc 0%, #eef3f9 46%, #e8edf6 100%)" title="清晨云光"></div>
                 <div class="theme-preset" data-gradient="linear-gradient(135deg, #f5f1ea 0%, #e8ded2 45%, #d8cab8 100%)" title="香槟米金"></div>
@@ -45,8 +52,14 @@
                 <span class="header-emoji float-4">🎞️</span>
                 <span class="header-emoji float-5">🌟</span>
             </div>
+            <div class="header-kicker" id="headerKicker">把寻常日子装订成家的回忆册</div>
             <h1>我的相册</h1>
             <p class="subtitle" id="dynamicSubtitle">记录美好瞬间</p>
+            <p class="header-description" id="headerDescription">和家人一起上传、留言，把重要的小日子慢慢收进同一本相册。</p>
+            <div class="header-actions">
+                <span class="festival-badge" id="festivalBadge">节日推荐</span>
+                <button class="recommend-theme-btn" id="recommendThemeBtn" type="button">一键切换主题</button>
+            </div>
             <div class="header-stats" id="headerStats"></div>
         </header>
 
@@ -63,7 +76,21 @@
                 </svg>
                 多选
             </button>
+            <button class="group-toggle-btn" id="groupToggleBtn" type="button">分组：平铺</button>
             <input type="file" id="fileInput" accept="image/*" multiple hidden>
+        </div>
+
+        <div class="upload-meta-panel">
+            <input type="text" id="captionInput" placeholder="给这一组照片写一句描述，例如：外婆生日的小聚会" maxlength="80">
+            <input type="text" id="tagsInput" placeholder="标签用逗号分开，例如：生日,家宴,春天" maxlength="60">
+        </div>
+
+        <div class="album-toolbar">
+            <div class="search-box">
+                <input type="search" id="searchInput" placeholder="搜索照片名称、描述或标签">
+                <button id="clearSearchBtn" type="button" hidden>清空</button>
+            </div>
+            <div class="search-hint" id="searchHint">可以搜索照片名称、描述或标签，例如“生日”“旅行”“奶奶”。</div>
         </div>
 
         <!-- 上传进度条 -->
@@ -128,6 +155,8 @@
                 </div>
             </div>
 
+            <div class="photo-story" id="photoStory"></div>
+
             <div class="photo-actions">
                 <!-- 表情回应区 -->
                 <div class="reactions-wrap">
@@ -188,4 +217,5 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 

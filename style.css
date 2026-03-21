@@ -1835,3 +1835,309 @@ html[data-theme="dark"] .edit-bar {
     background: rgba(255,255,255,0.03);
     border-color: rgba(255,255,255,0.08);
 }
+
+/* ===== 2026 家庭相册增强 ===== */
+:root {
+    --theme-chip-bg: rgba(255, 255, 255, 0.74);
+    --theme-body-glow: radial-gradient(circle, rgba(255, 255, 255, 0.88) 0%, rgba(196, 212, 255, 0.3) 30%, rgba(196, 212, 255, 0) 72%);
+}
+
+body::before {
+    background: var(--theme-body-glow);
+}
+
+.header-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    margin-bottom: 14px;
+    background: rgba(255, 255, 255, 0.58);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    box-shadow: 0 14px 28px rgba(88, 100, 128, 0.12);
+}
+
+.header-description {
+    max-width: 760px;
+    margin: 14px auto 0;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    line-height: 1.75;
+}
+
+.header-actions {
+    margin-top: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+}
+
+.festival-badge,
+.recommend-theme-btn,
+.group-toggle-btn,
+.auto-theme-btn,
+.theme-package-btn,
+#clearSearchBtn {
+    border: none;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+.festival-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 16px;
+    background: var(--theme-chip-bg);
+    color: var(--text-primary);
+    box-shadow: 0 12px 24px rgba(91, 109, 146, 0.1);
+}
+
+.recommend-theme-btn,
+.group-toggle-btn,
+.auto-theme-btn,
+.theme-package-btn,
+#clearSearchBtn {
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.recommend-theme-btn,
+.group-toggle-btn {
+    padding: 12px 18px;
+    background: rgba(255, 255, 255, 0.8);
+    color: var(--accent);
+    box-shadow: 0 12px 24px rgba(91, 109, 146, 0.12);
+}
+
+.recommend-theme-btn:hover,
+.group-toggle-btn:hover,
+.auto-theme-btn:hover,
+.theme-package-btn:hover,
+#clearSearchBtn:hover {
+    transform: translateY(-1px);
+}
+
+.theme-package-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.theme-package-btn,
+.auto-theme-btn {
+    width: 100%;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.58);
+    color: var(--text-primary);
+}
+
+.theme-package-btn.active,
+.auto-theme-btn.active {
+    background: var(--accent);
+    color: #fff;
+}
+
+.upload-meta-panel,
+.album-toolbar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+}
+
+.upload-meta-panel input,
+.search-box input {
+    min-height: 48px;
+    border-radius: 18px;
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.62);
+    color: var(--text-primary);
+    padding: 0 16px;
+    font-size: 0.96rem;
+    outline: none;
+    box-shadow: 0 12px 24px rgba(91, 109, 146, 0.08);
+}
+
+.upload-meta-panel input {
+    flex: 1 1 280px;
+    max-width: 420px;
+}
+
+.search-box {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex: 1 1 420px;
+    max-width: 640px;
+}
+
+.search-box input {
+    flex: 1;
+}
+
+#clearSearchBtn {
+    min-height: 44px;
+    padding: 0 16px;
+    background: rgba(255, 255, 255, 0.78);
+    color: var(--accent);
+}
+
+.search-hint {
+    width: 100%;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+}
+
+.card-info {
+    align-items: flex-start !important;
+    flex-direction: column;
+    gap: 10px !important;
+}
+
+.card-meta-row,
+.card-tags,
+.story-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.card-caption {
+    width: 100%;
+    color: var(--text-primary);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    max-height: calc(0.92rem * 1.5 * 2);
+    overflow: hidden;
+}
+
+.card-tag,
+.story-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: var(--theme-chip-bg);
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.gallery-group-title,
+.gallery-empty {
+    grid-column: 1 / -1;
+}
+
+.gallery-group-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 8px 0 -4px;
+    padding: 12px 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.4);
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.gallery-group-title em {
+    font-style: normal;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.gallery-empty {
+    text-align: center;
+    padding: 72px 20px;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.38);
+    color: var(--text-primary);
+}
+
+.gallery-empty-icon {
+    font-size: 2.2rem;
+    margin-bottom: 10px;
+}
+
+.gallery-empty-title {
+    font-size: 1.12rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.gallery-empty-desc {
+    color: var(--text-secondary);
+}
+
+.photo-story {
+    margin: 14px 0 16px;
+    padding: 16px 18px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.story-date {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.88rem;
+    margin-bottom: 10px;
+}
+
+.story-caption {
+    color: #fff;
+    font-size: 1rem;
+    line-height: 1.8;
+}
+
+.story-caption.empty {
+    color: rgba(255, 255, 255, 0.62);
+}
+
+html[data-theme="dark"] .header-kicker,
+html[data-theme="dark"] .festival-badge,
+html[data-theme="dark"] .recommend-theme-btn,
+html[data-theme="dark"] .group-toggle-btn,
+html[data-theme="dark"] .theme-package-btn,
+html[data-theme="dark"] .auto-theme-btn,
+html[data-theme="dark"] .upload-meta-panel input,
+html[data-theme="dark"] .search-box input,
+html[data-theme="dark"] #clearSearchBtn,
+html[data-theme="dark"] .gallery-group-title,
+html[data-theme="dark"] .gallery-empty {
+    background: rgba(18, 24, 35, 0.66);
+    color: var(--text-primary);
+}
+
+
+.gallery.drag-enabled .photo-card.draggable-card {
+    cursor: grab;
+}
+
+.gallery.drag-enabled .photo-card.draggable-card::before {
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+}
+
+.gallery.drag-enabled .photo-card.draggable-card:active {
+    cursor: grabbing;
+}
+
+.photo-card.dragging {
+    opacity: 0.45;
+    transform: scale(0.96);
+}
+
+.photo-card.drag-over {
+    outline: 3px dashed var(--accent);
+    outline-offset: 4px;
+    transform: translateY(-8px) scale(1.02);
+}
