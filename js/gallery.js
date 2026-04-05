@@ -1,5 +1,5 @@
 ﻿import { dom } from './dom.js';
-import { state, setPhotos, setVisiblePhotos, setLocalUploadPreviews, GALLERY_IMAGE_PLACEHOLDER, MAX_PARALLEL_IMAGE_LOADS, IMAGE_RETRY_LIMIT } from './state.js';
+import { state, setPhotos, setVisiblePhotos, setLocalUploadPreviews, updatePhotoInStore, GALLERY_IMAGE_PLACEHOLDER, MAX_PARALLEL_IMAGE_LOADS, IMAGE_RETRY_LIMIT } from './state.js';
 import { fetchPhotos, reorderPhotos, createGroup, renameGroup, updateBatchPhotoCaption, updatePhotoFavorite } from './api.js';
 import { escapeHtml, formatUploadMonth, formatUploadDate } from './utils.js';
 import { showStatusNotice, clearStatusNotice } from './feedback.js';
@@ -992,3 +992,4 @@ export function initGallery({ onOpenLightbox, onOpenBatchDeleteModal, onOpenGrou
         await promptBatchGroupAssignment();
     });
 }
+

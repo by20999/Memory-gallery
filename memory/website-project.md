@@ -1,76 +1,97 @@
-# 网站项目详细文档
+﻿# 网站项目详细文档
 
 ## 项目概述
-个人相册网站，Express + 原生 JS，无框架。支持图片上传、浏览、点赞、评论、表情回应、主题切换等功能。
+家庭共享相册网站，Express + 原生 JS，无前端框架。支持图片上传、浏览、评论、表情回应、主题切换、标签筛选、搜索、分组、收藏、首页记忆区与拖拽排序。
 
 ## 技术栈
 - 后端：Node.js + Express + multer（文件上传）
-- 前端：原生 HTML/CSS/JS，无框架
-- 存储：本地文件系统（uploads/）+ JSON 文件（photo-data.json）
+- 前端：原生 HTML / CSS / JS，无框架
+- 存储：本地文件系统（原图 + 缩略图）+ JSON 文件（`photo-data.json`）
 
 ## 已实现功能清单
 - 图片上传（多选、压缩、进度条）
-- 4列网格展示，图片 1:1 比例
+- 拖拽到上传区上传
+- 本地上传预览
+- 上传时填写描述 / 标签 / 分组
+- 4 列网格展示，图片 1:1 比例
 - 懒加载（IntersectionObserver）
 - 灯箱查看（左右切换按钮 + 键盘方向键）
-- 图片滤镜（黑白/复古/鲜艳/明亮/冷峻/赛博）
-- 图片编辑（亮度/对比度/饱和度/模糊滑块）
-- 表情回应（❤️😂😮😢👍），localStorage 防重复
-- 评论系统（发表/删除，昵称绑定）
+- 手机端左右滑动切图 / 下滑关闭
+- 图片滤镜（黑白 / 复古 / 鲜艳 / 明亮 / 冷峻 / 赛博）
+- 图片编辑（亮度 / 对比度 / 饱和度 / 模糊滑块）
+- 表情回应（❤️😂😮😢👍）
+- 评论系统（发表 / 删除，昵称绑定）
 - 昵称系统（首次进入必填，localStorage 存储）
 - 批量删除（多选模式，密码验证）
-- 深色/浅色主题切换 + 6个预设渐变 + 自定义颜色
-- Header 动态文字（每3.5秒切换）+ 浮动表情动画
-- 删除密码保护（默认 123456，env 可改）
+- 批量写简介
+- 批量加入 / 新建分组
+- 标签点击即筛选
+- 单张图片编辑描述 / 标签
+- 收藏功能与“仅看收藏”筛选
+- 首页最近新增 / 往年今日
+- 深色 / 浅色主题切换 + 预设渐变 + 自定义颜色
+- Header 动态文字 + 主题包 + 节日推荐主题
 
-## CSS 关键结构（style.css）
-```
-:root / [data-theme="dark"]  — CSS 变量
-header / .header-emoji-row   — 顶部标题区
-.upload-section              — 上传按钮 + 多选按钮
-.upload-progress-wrap        — 上传进度条
-.batch-bar                   — 批量删除操作栏
-.gallery                     — 4列网格（移动端也4列，gap:8px）
-.photo-card / .photo-card img — 卡片，aspect-ratio:1/1
-.lightbox / .lightbox-nav    — 灯箱 + 左右导航按钮
-.filter-bar / .edit-bar      — 滤镜/编辑工具栏
-.theme-panel                 — 右上角主题控制面板
-.nickname-modal / .pwd-modal — 昵称/密码弹窗
-.user-badge                  — 右上角用户信息
-@media (max-width: 768px)    — 响应式（文件末尾，单一块）
-```
-
-## JS 关键变量/函数（script.js）
-```
-photos[]              — 全局图片数组
-currentPhotoIndex     — 当前灯箱图片索引
-batchMode             — 是否处于批量选择模式
-selectedIds           — Set，批量选中的图片 id
-
-loadPhotos()          — 从 /api/photos 加载并渲染
-renderGallery()       — 渲染网格，支持批量模式
-openLightbox(index)   — 打开灯箱，加载详情
-updateNavBtns()       — 更新灯箱左右按钮禁用状态
-compressImage(file)   — canvas 压缩，2560px/0.92质量
-enterBatchMode()      — 进入批量选择
-exitBatchMode()       — 退出批量选择
+## JS 关键模块
+```text
+js/main.js       — 模块入口
+js/dom.js        — DOM 引用集中管理
+js/state.js      — 前端状态管理
+js/api.js        — API 封装
+js/gallery.js    — 列表渲染、筛选、分组、排序、收藏、首页记忆区
+js/upload.js     — 上传、压缩、拖拽上传、上传反馈
+js/lightbox.js   — 灯箱详情、编辑、收藏、移动端手势
+js/comments.js   — 评论与表情回应
+js/theme.js      — 主题逻辑
+js/feedback.js   — 顶部状态提示
 ```
 
-## API 路由（server.js）
+## API 路由
+```text
+GET    /api/photos
+GET    /api/photos/:id
+PATCH  /api/photos/:id
+PATCH  /api/photos/:id/favorite
+PATCH  /api/photos/batch/caption
+POST   /api/upload
+POST   /api/photos/reorder
+DELETE /api/photos/:id
+POST   /api/photos/:id/like
+POST   /api/photos/:id/react
+POST   /api/photos/:id/comment
+DELETE /api/photos/:photoId/comment/:commentId
 ```
-GET    /api/photos              — 获取所有图片列表（含统计）
-GET    /api/photos/:id          — 获取单张详情（含评论）
-POST   /api/upload              — 上传图片（multer，最多10张）
-DELETE /api/photos/:id          — 删除图片（需密码）
-POST   /api/photos/:id/like     — 点赞
-POST   /api/photos/:id/react    — 表情回应
-POST   /api/photos/:id/comment  — 发表评论
-DELETE /api/photos/:photoId/comment/:commentId — 删除评论
+
+## 当前拖拽排序规则
+拖拽排序只在以下场景启用：
+- `全部图片`
+- `sortMode === custom`
+- `contentFilter === all`
+- 无搜索关键词
+- 无标签筛选
+- 非批量模式
+- 非上传本地预览态
+- 非保存中
+
+## 当前数据结构补充
+`photo-data.json` 中每张图现在可能包含：
+```json
+{
+  "likes": 0,
+  "comments": [],
+  "reactions": {},
+  "caption": "家庭聚餐",
+  "favorited": false,
+  "tags": ["家宴", "周末"],
+  "order": 0,
+  "groupName": "生日",
+  "thumbnail": "1711111111111-abc123def.jpg"
+}
 ```
 
 ## 已知注意事项
-- `@media (max-width: 768px)` 只有一个块，在文件末尾，不要重复创建
-- `pwdConfirmBtn` 的 addEventListener 只有一个（在事件绑定区），通过 `modal._batchMode` 区分单张/批量删除
-- `upload-section` 的 `margin-bottom` 是 16px（不是 40px），因为下面有进度条占位
-- `image-rendering: crisp-edges` 已加在 `.photo-card img` 上
-- CSS 变量 `--accent` 在深色模式下是 `#8899ff`
+- `pwdConfirmBtn` 的事件绑定只能保留一个
+- `upload-section` 的 `margin-bottom` 是 16px
+- 理想上 `style.css` 只应保留一个 `@media (max-width: 768px)`，但当前仓库实际还有两个，后续整理时要统一合并，不要再新增第三个
+- 涉及收藏、搜索、分组、首页记忆区时，要注意状态联动是否正确
+- 拖拽排序规则不要随意放宽
