@@ -1,4 +1,4 @@
-﻿import { dom } from './dom.js';
+import { dom } from './dom.js';
 import { state, setPhotos, setVisiblePhotos, setLocalUploadPreviews, updatePhotoInStore, GALLERY_IMAGE_PLACEHOLDER, MAX_PARALLEL_IMAGE_LOADS, IMAGE_RETRY_LIMIT } from './state.js';
 import { fetchPhotos, reorderPhotos, createGroup, renameGroup, updateBatchPhotoCaption, updatePhotoFavorite } from './api.js';
 import { escapeHtml, formatUploadMonth, formatUploadDate } from './utils.js';
@@ -8,7 +8,9 @@ const DEFAULT_GROUP_NAME = '\u5168\u90e8\u56fe\u7247';
 const UNGROUPED_GROUP_NAME = '\u672a\u5206\u7ec4';
 const SORT_LABELS = { custom: '\u624b\u52a8\u987a\u5e8f', newest: '\u6700\u65b0\u4e0a\u4f20', oldest: '\u6700\u65e9\u4e0a\u4f20', name: '\u6309\u540d\u79f0' };
 const CONTENT_FILTER_LABELS = { all: '\u5168\u90e8\u7167\u7247', captioned: '\u4ec5\u770b\u6709\u7b80\u4ecb', favorites: '\u4ec5\u770b\u6536\u85cf' };
+const VIEW_MODE_LABELS = { grid: '\u7f51\u683c', timeline: '\u65f6\u95f4\u7ebf' };
 const MEMORY_CARD_LIMIT = 6;
+const TIMELINE_PREVIEW_LIMIT = 4;
 
 let openLightboxHandler = () => {};
 let openBatchDeleteModalHandler = () => {};
@@ -64,6 +66,80 @@ function getTodayMemoryPhotos() {
         })
         .sort((a, b) => (b.uploadTime || 0) - (a.uploadTime || 0))
         .slice(0, MEMORY_CARD_LIMIT);
+}
+
+function getViewModeLabel(mode = state.viewMode) {
+    return VIEW_MODE_LABELS[mode] || VIEW_MODE_LABELS.grid;
+}
+
+function getTimelineMonthSortValue(dateValue) {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return -1;
+    return new Date(date.getFullYear(), date.getMonth(), 1).getTime();
+}
+
+function getTimelineMonthLabel(dateValue) {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return '未标记月份';
+    return `${date.getFullYear()}年${date.getMonth() + 1}月`;
+}
+
+function getTimelineYearLabel(dateValue) {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return '未标记年份';
+    return `${date.getFullYear()}年`;
+}
+
+function getTimelinePhotos(photos) {
+    return [...photos].sort((a, b) => (b.uploadTime || 0) - (a.uploadTime || 0));
+}
+
+function getTopTags(photos, limit = 3) {
+    const counts = new Map();
+    photos.forEach((photo) => {
+        (photo.tags || []).forEach((tag) => {
+            const normalized = String(tag || '').trim();
+            if (!normalized) return;
+            counts.set(normalized, (counts.get(normalized) || 0) + 1);
+        });
+    });
+    return [...counts.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh-CN'))
+        .slice(0, limit)
+        .map(([tag]) => tag);
+}
+
+function getStoryPhotoCount(photos) {
+    return photos.filter((photo) => Boolean((photo.caption || '').trim())).length;
+}
+
+function getTimelineGroupsFromPhotos(photos) {
+    const groups = new Map();
+    getTimelinePhotos(photos).forEach((photo) => {
+        const label = getTimelineMonthLabel(photo.uploadTime);
+        if (!groups.has(label)) {
+            groups.set(label, {
+                label,
+                yearLabel: getTimelineYearLabel(photo.uploadTime),
+                sortValue: getTimelineMonthSortValue(photo.uploadTime),
+                items: []
+            });
+        }
+        groups.get(label).items.push(photo);
+    });
+    return [...groups.values()].sort((a, b) => b.sortValue - a.sortValue || (b.items[0]?.uploadTime || 0) - (a.items[0]?.uploadTime || 0));
+}
+
+function buildTimelineSummary(group) {
+    const storyCount = getStoryPhotoCount(group.items);
+    const favoriteCount = group.items.filter((photo) => photo.favorited).length;
+    const topTags = getTopTags(group.items, 3);
+    const pieces = [`收进了 ${group.items.length} 张照片`];
+    if (storyCount > 0) pieces.push(`${storyCount} 张写下了故事`);
+    else pieces.push('还可以补上一句故事让回忆更完整');
+    if (favoriteCount > 0) pieces.push(`${favoriteCount} 张被特别收藏`);
+    if (topTags.length > 0) pieces.push(`关键词是 ${topTags.map((tag) => `#${tag}`).join('、')}`);
+    return `${pieces.join('，')}。`;
 }
 
 function getCustomGroups() {
@@ -190,13 +266,14 @@ function buildGroups() {
 }
 
 function updateHeaderStats(totalCount, filteredCount) {
-    const pieces = [`\u5171 ${totalCount} \u5f20\u7167\u7247`];
-    if (state.localUploadPreviews.length > 0) pieces.push(`\u4e0a\u4f20\u4e2d ${state.localUploadPreviews.length} \u5f20`);
-    if (state.activeGroupName !== DEFAULT_GROUP_NAME) pieces.push(`\u5f53\u524d\u5206\u7ec4\uff1a${state.activeGroupName}`);
-    if (state.activeTagFilter) pieces.push(`\u6807\u7b7e\u7b5b\u9009\uff1a#${state.activeTagFilter}`);
-    if (state.searchKeyword.trim()) pieces.push(`\u641c\u7d22\u201c${state.searchKeyword.trim()}\u201d\u5171 ${filteredCount} \u5f20`);
-    if (state.sortMode !== 'custom') pieces.push(`\u6392\u5e8f\uff1a${getSortLabel()}`);
+    const pieces = [`共 ${totalCount} 张照片`];
+    if (state.localUploadPreviews.length > 0) pieces.push(`上传中 ${state.localUploadPreviews.length} 张`);
+    if (state.activeGroupName !== DEFAULT_GROUP_NAME) pieces.push(`当前分组：${state.activeGroupName}`);
+    if (state.activeTagFilter) pieces.push(`标签筛选：#${state.activeTagFilter}`);
+    if (state.searchKeyword.trim()) pieces.push(`搜索“${state.searchKeyword.trim()}”共 ${filteredCount} 张`);
+    if (state.sortMode !== 'custom') pieces.push(`排序：${getSortLabel()}`);
     if (state.contentFilter !== 'all') pieces.push(getContentFilterLabel());
+    if (state.viewMode !== 'grid') pieces.push(`视图：${getViewModeLabel()}`);
     dom.headerStats.textContent = pieces.join(' · ');
 }
 function getGroupPromptMessage() {
@@ -321,8 +398,225 @@ function renderMemoryBoard() {
     }
 
     dom.memoryBoard.hidden = false;
-    renderMemoryStrip(dom.memoryRecentList, recentPhotos, '\u4e0a\u4f20\u51e0\u5f20\u65b0\u7167\u7247\u540e\uff0c\u8fd9\u91cc\u4f1a\u81ea\u52a8\u66f4\u65b0\u3002');
-    renderMemoryStrip(dom.memoryTodayList, todayPhotos, '\u4eca\u5e74\u7684\u4eca\u5929\u8fd8\u6ca1\u6709\u627e\u5230\u5f80\u5e74\u56de\u5fc6\u3002');
+    renderMemoryStrip(dom.memoryRecentList, recentPhotos, '上传几张新照片后，这里会自动更新。');
+    renderMemoryStrip(dom.memoryTodayList, todayPhotos, '今年的今天还没有找到往年回忆。');
+}
+
+function scrollGalleryIntoView() {
+    if (!dom.gallery || typeof dom.gallery.scrollIntoView !== 'function') return;
+    dom.gallery.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function buildRitualCards() {
+    const persistedPhotos = getPersistedPhotos();
+    if (persistedPhotos.length === 0) return [];
+
+    const timelineGroups = getTimelineGroupsFromPhotos(persistedPhotos);
+    const latestGroup = timelineGroups[0] || null;
+    const incompleteStoryPhoto = getTimelinePhotos(persistedPhotos)
+        .find((photo) => !photo.isLocalPreview && (!String(photo.caption || '').trim() || (photo.tags || []).length === 0)) || null;
+    const favorites = getTimelinePhotos(persistedPhotos).filter((photo) => photo.favorited);
+    const oldestPhoto = [...persistedPhotos].sort((a, b) => (a.uploadTime || 0) - (b.uploadTime || 0))[0] || null;
+    const todayPhotos = getTodayMemoryPhotos();
+    const highlightedStoryPhoto = incompleteStoryPhoto
+        || getTimelinePhotos(persistedPhotos).find((photo) => Boolean((photo.caption || '').trim()))
+        || latestGroup?.items[0]
+        || oldestPhoto;
+
+    const cards = [];
+    if (latestGroup?.items[0]) {
+        cards.push({
+            kicker: '时间线视图',
+            title: `从 ${latestGroup.label} 开始翻这一册`,
+            desc: buildTimelineSummary(latestGroup),
+            action: 'timeline',
+            buttonLabel: '切到时间线'
+        });
+    }
+
+    if (highlightedStoryPhoto) {
+        const missingPieces = [];
+        if (!String(highlightedStoryPhoto.caption || '').trim()) missingPieces.push('一句描述');
+        if ((highlightedStoryPhoto.tags || []).length === 0) missingPieces.push('几个关键词');
+        cards.push({
+            kicker: '故事模式',
+            title: missingPieces.length > 0 ? '把这张照片补成完整故事' : '打开一段已经写好的家庭片段',
+            desc: missingPieces.length > 0
+                ? `这张照片还差 ${missingPieces.join('和')}，点开后就能继续把它写进回忆里。`
+                : '这张照片已经有了文字和线索，适合继续看看评论、表情和前后片段。',
+            action: 'photo',
+            photoId: highlightedStoryPhoto.id,
+            buttonLabel: missingPieces.length > 0 ? '继续写故事' : '打开故事模式'
+        });
+    }
+
+    if (todayPhotos[0]) {
+        cards.push({
+            kicker: '家庭仪式感',
+            title: '把往年今日再一起看一遍',
+            desc: `今天刚好有 ${todayPhotos.length} 张往年今日照片，适合一家人重新翻到同一天的回忆。`,
+            action: 'photo',
+            photoId: todayPhotos[0].id,
+            buttonLabel: '打开往年今日'
+        });
+    } else if (favorites[0]) {
+        cards.push({
+            kicker: '家庭仪式感',
+            title: '今晚翻翻被特别偏爱的照片',
+            desc: `你们已经收藏了 ${favorites.length} 张照片，切到收藏视图就能快速回看那些最常想起的时刻。`,
+            action: 'favorites',
+            buttonLabel: '查看收藏'
+        });
+    } else if (oldestPhoto) {
+        cards.push({
+            kicker: '家庭仪式感',
+            title: '回到第一张被放进相册的照片',
+            desc: '偶尔从最早的一页重新开始翻，会更容易看见这个家的时间感是怎么慢慢长出来的。',
+            action: 'photo',
+            photoId: oldestPhoto.id,
+            buttonLabel: '回到最开始'
+        });
+    }
+
+    return cards.slice(0, 3);
+}
+
+function renderRitualBoard() {
+    if (!dom.ritualBoard) return;
+    if (!isHomeView()) {
+        dom.ritualBoard.hidden = true;
+        return;
+    }
+
+    const cards = buildRitualCards();
+    if (cards.length === 0) {
+        dom.ritualBoard.hidden = true;
+        return;
+    }
+
+    dom.ritualBoard.hidden = false;
+    dom.ritualBoard.innerHTML = `
+        <div class="ritual-board-head">
+            <div>
+                <span class="ritual-eyebrow">家庭仪式感</span>
+                <h2>让相册不只是存放照片，也成为一家人会期待的小动作</h2>
+            </div>
+            <p>翻一页时间线、补一句故事、重看一张偏爱的照片，回忆就会慢慢长出属于这个家的节奏。</p>
+        </div>
+        <div class="ritual-grid">
+            ${cards.map((card) => `
+                <article class="ritual-card">
+                    <span class="ritual-card-kicker">${escapeHtml(card.kicker)}</span>
+                    <h3>${escapeHtml(card.title)}</h3>
+                    <p>${escapeHtml(card.desc)}</p>
+                    <button class="ritual-card-btn" type="button" data-ritual-action="${escapeHtml(card.action)}" ${card.photoId ? `data-ritual-photo-id="${escapeHtml(card.photoId)}"` : ''}>
+                        ${escapeHtml(card.buttonLabel)}
+                    </button>
+                </article>
+            `).join('')}
+        </div>
+    `;
+
+    dom.ritualBoard.querySelectorAll('[data-ritual-action]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const action = button.dataset.ritualAction;
+            if (action === 'timeline') {
+                state.viewMode = 'timeline';
+                renderGallery();
+                scrollGalleryIntoView();
+                return;
+            }
+            if (action === 'favorites') {
+                state.activeGroupName = DEFAULT_GROUP_NAME;
+                state.searchKeyword = '';
+                state.activeTagFilter = '';
+                state.viewMode = 'grid';
+                state.contentFilter = 'favorites';
+                dom.searchInput.value = '';
+                dom.contentFilterSelect.value = 'favorites';
+                renderGallery();
+                scrollGalleryIntoView();
+                return;
+            }
+            if (action === 'photo' && button.dataset.ritualPhotoId) {
+                openPhotoById(button.dataset.ritualPhotoId);
+            }
+        });
+    });
+}
+
+function renderTimelineGallery(visibleIndexMap) {
+    const timelineGroups = getTimelineGroupsFromPhotos(state.visiblePhotos);
+    dom.gallery.innerHTML = timelineGroups.map((group) => {
+        const featured = group.items[0];
+        const featuredIndex = visibleIndexMap.get(featured.id);
+        const featuredOpenable = !featured.isLocalPreview && typeof featuredIndex === 'number';
+        const featuredTitle = featured.caption || featured.name || '这一页回忆';
+        const featuredDate = formatUploadDate(featured.uploadTime) || '还没有记录日期';
+        const topTags = getTopTags(group.items, 3);
+        const favoriteCount = group.items.filter((photo) => photo.favorited).length;
+        const storyCount = getStoryPhotoCount(group.items);
+        const groupName = getPhotoGroupName(featured);
+        const thumbs = group.items.slice(1, TIMELINE_PREVIEW_LIMIT + 1).map((photo) => {
+            const thumbIndex = visibleIndexMap.get(photo.id);
+            const thumbOpenable = !photo.isLocalPreview && typeof thumbIndex === 'number';
+            return `
+                <button class="timeline-thumb${thumbOpenable ? '' : ' is-disabled'}" type="button" ${thumbOpenable ? `data-timeline-index="${thumbIndex}"` : 'disabled'}>
+                    <img src="${escapeHtml(photo.thumbSrc || photo.src || GALLERY_IMAGE_PLACEHOLDER)}" alt="${escapeHtml(photo.name || '时间线照片')}" loading="lazy">
+                    <span class="timeline-thumb-label">${escapeHtml(photo.caption || photo.name || '还没写故事')}</span>
+                </button>
+            `;
+        }).join('');
+
+        return `
+            <article class="timeline-block">
+                <div class="timeline-rail">
+                    <span class="timeline-year">${escapeHtml(group.yearLabel)}</span>
+                    <span class="timeline-dot"></span>
+                </div>
+                <div class="timeline-card">
+                    <div class="timeline-card-head">
+                        <div>
+                            <span class="timeline-month">${escapeHtml(group.label)}</span>
+                            <h3>${escapeHtml(featuredTitle)}</h3>
+                        </div>
+                        <span class="timeline-count">${group.items.length} 张</span>
+                    </div>
+                    <p class="timeline-summary">${escapeHtml(buildTimelineSummary(group))}</p>
+                    <div class="timeline-feature">
+                        <button class="timeline-feature-media${featuredOpenable ? '' : ' is-disabled'}" type="button" ${featuredOpenable ? `data-timeline-index="${featuredIndex}"` : 'disabled'}>
+                            <img src="${escapeHtml(featured.thumbSrc || featured.src || GALLERY_IMAGE_PLACEHOLDER)}" alt="${escapeHtml(featured.name || '时间线封面')}" loading="lazy">
+                            ${featured.favorited ? '<span class="timeline-photo-badge">收藏</span>' : ''}
+                            ${featured.isLocalPreview ? '<span class="timeline-photo-badge upload">上传中</span>' : ''}
+                        </button>
+                        <div class="timeline-feature-copy">
+                            <div class="timeline-feature-meta">
+                                <span>${escapeHtml(featuredDate)}</span>
+                                ${groupName ? `<span>分组 · ${escapeHtml(groupName)}</span>` : ''}
+                                ${storyCount > 0 ? `<span>${storyCount} 张有故事</span>` : ''}
+                                ${favoriteCount > 0 ? `<span>${favoriteCount} 张收藏</span>` : ''}
+                            </div>
+                            <div class="timeline-chip-row">
+                                ${topTags.map((tag) => `<span class="timeline-chip">#${escapeHtml(tag)}</span>`).join('')}
+                            </div>
+                            ${featuredOpenable ? `<button class="timeline-open-btn" type="button" data-timeline-index="${featuredIndex}">打开这一页回忆</button>` : '<span class="timeline-open-tip">上传完成后会出现在正式时间线上</span>'}
+                        </div>
+                    </div>
+                    <div class="timeline-thumbs${thumbs ? '' : ' is-empty'}">
+                        ${thumbs || '<div class="timeline-thumb-empty">这个月暂时只有这一页，等再添几张照片，这里会慢慢长成一条更完整的家庭时间线。</div>'}
+                    </div>
+                </div>
+            </article>
+        `;
+    }).join('');
+
+    dom.gallery.querySelectorAll('[data-timeline-index]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const index = Number(button.dataset.timelineIndex);
+            if (Number.isNaN(index)) return;
+            openLightboxHandler(index);
+        });
+    });
 }
 
 function clearDragOverState() {
@@ -353,29 +647,38 @@ function renderGroupActions() {
 
 function updateSearchHint(filteredCount) {
     const tips = [];
-    if (state.activeTagFilter) tips.push(`\u6b63\u5728\u6309\u6807\u7b7e #${state.activeTagFilter} \u7cbe\u786e\u7b5b\u9009\uff0c\u5171 ${filteredCount} \u5f20\u3002`);
-    if (state.searchKeyword.trim()) tips.push(`\u6b63\u5728\u641c\u7d22\u201c${state.searchKeyword.trim()}\u201d\uff0c\u7ed3\u679c\u4f1a\u6309\u5206\u7ec4\u5c55\u793a\uff0c\u5e76\u5df2\u7981\u7528\u62d6\u62fd\u6392\u5e8f\u3002`);
+    if (state.activeTagFilter) tips.push(`正在按标签 #${state.activeTagFilter} 精确筛选，共 ${filteredCount} 张。`);
+    if (state.searchKeyword.trim()) tips.push(`正在搜索“${state.searchKeyword.trim()}”，结果会按分组展示，并已禁用拖拽排序。`);
     if (!state.searchKeyword.trim() && !state.activeTagFilter) {
-        if (state.localUploadPreviews.length > 0) tips.push('\u65b0\u4e0a\u4f20\u7684\u7167\u7247\u4f1a\u5148\u4ee5\u672c\u5730\u9884\u89c8\u663e\u793a\uff0c\u4e0a\u4f20\u5b8c\u6210\u540e\u81ea\u52a8\u66ff\u6362\u6210\u6b63\u5f0f\u56fe\u7247\u3002\u4e0a\u4f20\u671f\u95f4\u5df2\u7981\u7528\u62d6\u62fd\u6392\u5e8f\u3002');
-        else if (state.batchMode) tips.push('\u6279\u91cf\u6a21\u5f0f\u4e0b\u5df2\u7981\u7528\u62d6\u62fd\u6392\u5e8f\uff0c\u907f\u514d\u548c\u591a\u9009\u64cd\u4f5c\u51b2\u7a81\u3002');
-        else if (state.activeGroupName !== DEFAULT_GROUP_NAME) tips.push(`\u5f53\u524d\u6b63\u5728\u67e5\u770b\u201c${state.activeGroupName}\u201d\u5206\u7ec4\u3002\u82e5\u8be5\u5206\u7ec4\u7167\u7247\u5168\u90e8\u5220\u9664\uff0c\u5bfc\u822a\u91cc\u4f1a\u81ea\u52a8\u79fb\u9664\u5b83\u3002`);
-        else if (state.reorderSaving) tips.push('\u6b63\u5728\u4fdd\u5b58\u65b0\u7684\u7167\u7247\u987a\u5e8f...');
+        if (state.localUploadPreviews.length > 0) tips.push('新上传的照片会先以本地预览显示，上传完成后自动替换成正式图片。上传期间已禁用拖拽排序。');
+        else if (state.batchMode) tips.push('批量模式下已禁用拖拽排序，避免和多选操作冲突。');
+        else if (state.activeGroupName !== DEFAULT_GROUP_NAME) tips.push(`当前正在查看“${state.activeGroupName}”分组。若该分组照片全部删除，导航里会自动移除它。`);
+        else if (state.reorderSaving) tips.push('正在保存新的照片顺序...');
         else {
-            tips.push(`\u53ef\u4ee5\u76f4\u63a5\u641c\u7d22\u5206\u7ec4\u540d\u3001\u7167\u7247\u540d\u79f0\u3001\u63cf\u8ff0\u6216\u6807\u7b7e\u3002\u5f53\u524d\u5171 ${filteredCount} \u5f20\u3002`);
-            tips.push('\u70b9\u51fb\u5361\u7247\u4e0a\u7684\u6807\u7b7e\u53ef\u76f4\u63a5\u7b5b\u9009\u3002');
-            if (canDragReorder()) tips.push('\u5168\u90e8\u56fe\u7247\u4e0b\u652f\u6301\u9f20\u6807\u62d6\u52a8\u6392\u5e8f\u3002');
+            tips.push(`可以直接搜索分组名、照片名称、描述或标签。当前共 ${filteredCount} 张。`);
+            tips.push('点击卡片上的标签可直接筛选。');
+            if (canDragReorder()) tips.push('全部图片下支持鼠标拖动排序。');
         }
     }
-    if (state.sortMode !== 'custom') tips.push(`\u5f53\u524d\u6309\u201c${getSortLabel()}\u201d\u6392\u5e8f\u3002`);
-    if (state.contentFilter === 'favorites') tips.push('\u5df2\u5207\u6362\u5230\u6536\u85cf\u89c6\u56fe\uff0c\u53d6\u6d88\u661f\u6807\u540e\u4f1a\u81ea\u52a8\u4ece\u8fd9\u91cc\u79fb\u51fa\u3002');
-    else if (state.contentFilter !== 'all') tips.push(`\u5df2\u542f\u7528\u201c${getContentFilterLabel()}\u201d\u3002`);
+    if (state.viewMode === 'timeline') tips.push('已切换到时间线视图，当前结果会按月份归档展示，并暂停拖拽排序。');
+    if (state.sortMode !== 'custom') tips.push(`当前按“${getSortLabel()}”排序。`);
+    if (state.contentFilter === 'favorites') tips.push('已切换到收藏视图，取消星标后会自动从这里移出。');
+    else if (state.contentFilter !== 'all') tips.push(`已启用“${getContentFilterLabel()}”。`);
     dom.searchHint.textContent = tips.join(' ');
     dom.clearSearchBtn.hidden = !state.searchKeyword.trim() && !state.activeTagFilter;
-    dom.clearSearchBtn.textContent = state.activeTagFilter ? '\u6e05\u7a7a\u7b5b\u9009' : '\u6e05\u7a7a\u641c\u7d22';
+    dom.clearSearchBtn.textContent = state.activeTagFilter ? '清空筛选' : '清空搜索';
 }
 
 function canDragReorder() {
-    return state.activeGroupName === DEFAULT_GROUP_NAME && state.sortMode === 'custom' && state.contentFilter === 'all' && !state.batchMode && !state.searchKeyword.trim() && !state.activeTagFilter && !state.reorderSaving && state.localUploadPreviews.length === 0;
+    return state.viewMode === 'grid'
+        && state.activeGroupName === DEFAULT_GROUP_NAME
+        && state.sortMode === 'custom'
+        && state.contentFilter === 'all'
+        && !state.batchMode
+        && !state.searchKeyword.trim()
+        && !state.activeTagFilter
+        && !state.reorderSaving
+        && state.localUploadPreviews.length === 0;
 }
 
 function movePhotoToTarget(photoList, draggedId, targetId, insertAfter = false) {
@@ -687,6 +990,7 @@ function renderEmptyState() {
 }
 export function enterBatchMode() {
     state.batchMode = true;
+    state.viewMode = 'grid';
     state.selectedIds.clear();
     dom.batchDeleteToggleBtn.classList.add('active');
     dom.batchBar.classList.add('visible');
@@ -704,19 +1008,29 @@ export function exitBatchMode() {
 
 export function renderGallery() {
     const groups = buildGroups();
-    setVisiblePhotos(groups.flatMap((group) => group.items));
+    const groupedPhotos = groups.flatMap((group) => group.items);
+    const nextVisiblePhotos = state.viewMode === 'timeline' ? getTimelinePhotos(groupedPhotos) : groupedPhotos;
+    setVisiblePhotos(nextVisiblePhotos);
     const visibleIndexMap = new Map(state.visiblePhotos.map((photo, index) => [photo.id, index]));
     const dragEnabled = canDragReorder();
     dom.gallery.innerHTML = '';
     clearImageLoadQueue();
+    if (state.galleryObserver) state.galleryObserver.disconnect();
     renderGroupNav();
     renderGroupActions();
     renderUploadGroupOptions();
     renderMemoryBoard();
+    renderRitualBoard();
     dom.sortSelect.value = state.sortMode;
     dom.contentFilterSelect.value = state.contentFilter;
+    dom.viewToggleBtns.forEach((button) => {
+        const active = button.dataset.viewMode === state.viewMode;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
     updateHeaderStats(getAllPhotos().length, state.visiblePhotos.length);
     updateSearchHint(state.visiblePhotos.length);
+    dom.gallery.classList.toggle('timeline-mode', state.viewMode === 'timeline');
     dom.gallery.classList.toggle('drag-enabled', dragEnabled);
     dom.gallery.classList.toggle('is-sorting', Boolean(state.draggedPhotoId));
     dom.gallery.classList.toggle('sorting-pending', state.reorderSaving);
@@ -733,13 +1047,18 @@ export function renderGallery() {
         return;
     }
 
+    if (state.viewMode === 'timeline') {
+        renderTimelineGallery(visibleIndexMap);
+        return;
+    }
+
     const fragment = document.createDocumentFragment();
     let animationIndex = 0;
     groups.forEach((group) => {
         if (group.title) {
             const groupTitle = document.createElement('div');
             groupTitle.className = 'gallery-group-title';
-            groupTitle.innerHTML = `<span>${escapeHtml(group.title)}</span><em>${group.items.length} \u5f20</em>`;
+            groupTitle.innerHTML = `<span>${escapeHtml(group.title)}</span><em>${group.items.length} 张</em>`;
             fragment.appendChild(groupTitle);
         }
         group.items.forEach((photo) => {
@@ -756,7 +1075,7 @@ export function renderGallery() {
             animationIndex += 1;
 
             const img = document.createElement('img');
-            img.alt = photo.name || '\u65b0\u4e0a\u4f20\u7684\u7167\u7247';
+            img.alt = photo.name || '新上传的照片';
             if (photo.isLocalPreview) {
                 img.src = photo.thumbSrc || photo.src || GALLERY_IMAGE_PLACEHOLDER;
                 img.dataset.loading = 'done';
@@ -775,10 +1094,10 @@ export function renderGallery() {
             const caption = photo.caption ? `<div class="card-caption">${highlightText(photo.caption)}</div>` : '';
             const tags = (photo.tags || []).slice(0, 3).map((tag) => buildFilterChip(`#${highlightText(tag)}`, 'data-filter-tag', tag, normalizeCompare(tag) === normalizeCompare(state.activeTagFilter))).join('');
             const groupName = getPhotoGroupName(photo);
-            const groupBadge = groupName ? buildFilterChip(`\u5206\u7ec4 · ${highlightText(groupName)}`, 'data-filter-group', groupName, groupName === state.activeGroupName && !state.searchKeyword.trim() && !state.activeTagFilter) : '';
-            const coverBadge = groupName && photo.groupCoverPhotoId === photo.id ? '<span class="card-tag group-cover-chip">\u5206\u7ec4\u5c01\u9762</span>' : '';
-            const uploadBadge = photo.isLocalPreview ? '<span class="card-tag upload-chip">\u4e0a\u4f20\u4e2d</span>' : '';
-            const favoriteBadge = photo.favorited ? '<span class="card-tag favorite-chip">\u2605 \u5df2\u6536\u85cf</span>' : '';
+            const groupBadge = groupName ? buildFilterChip(`分组 · ${highlightText(groupName)}`, 'data-filter-group', groupName, groupName === state.activeGroupName && !state.searchKeyword.trim() && !state.activeTagFilter) : '';
+            const coverBadge = groupName && photo.groupCoverPhotoId === photo.id ? '<span class="card-tag group-cover-chip">分组封面</span>' : '';
+            const uploadBadge = photo.isLocalPreview ? '<span class="card-tag upload-chip">上传中</span>' : '';
+            const favoriteBadge = photo.favorited ? '<span class="card-tag favorite-chip">★ 已收藏</span>' : '';
             const reactions = photo.reactions || {};
             const reactionSummary = Object.keys(reactions).filter((emoji) => reactions[emoji] > 0).slice(0, 3).join('');
             const matchHint = buildSearchMatchHint(photo);
@@ -799,14 +1118,14 @@ export function renderGallery() {
                 const favoriteBtn = document.createElement('button');
                 favoriteBtn.className = `card-favorite-btn${photo.favorited ? ' active' : ''}`;
                 favoriteBtn.type = 'button';
-                favoriteBtn.setAttribute('aria-label', photo.favorited ? '\u53d6\u6d88\u6536\u85cf' : '\u6536\u85cf\u7167\u7247');
-                favoriteBtn.textContent = photo.favorited ? '\u2605' : '\u2606';
+                favoriteBtn.setAttribute('aria-label', photo.favorited ? '取消收藏' : '收藏照片');
+                favoriteBtn.textContent = photo.favorited ? '★' : '☆';
                 favoriteBtn.addEventListener('click', async (event) => {
                     event.stopPropagation();
                     try {
                         await togglePhotoFavorite(photo.id);
                     } catch (error) {
-                        console.error('\u5207\u6362\u6536\u85cf\u5931\u8d25:', error);
+                        console.error('切换收藏失败:', error);
                     }
                 });
                 card.appendChild(favoriteBtn);
@@ -872,7 +1191,6 @@ export function renderGallery() {
         });
     });
     dom.gallery.appendChild(fragment);
-    if (state.galleryObserver) state.galleryObserver.disconnect();
     state.galleryObserver = new IntersectionObserver((entries) => {
         entries.forEach((entry) => { if (entry.isIntersecting) { queueImageLoad(entry.target); state.galleryObserver.unobserve(entry.target); } });
     }, { rootMargin: '160px 0px', threshold: 0.01 });
@@ -941,6 +1259,19 @@ export function initGallery({ onOpenLightbox, onOpenBatchDeleteModal, onOpenGrou
         renderGallery();
     });
 
+    dom.viewToggleBtns.forEach((button) => {
+        button.addEventListener('click', () => {
+            const nextMode = button.dataset.viewMode || 'grid';
+            if (nextMode === state.viewMode) return;
+            if (state.batchMode && nextMode === 'timeline') {
+                showStatusNotice('批量模式下先使用网格视图，避免和多选操作冲突。', { tone: 'info', duration: 2200 });
+                return;
+            }
+            state.viewMode = nextMode;
+            renderGallery();
+        });
+    });
+
     dom.clearSearchBtn.addEventListener('click', clearSearchAndTagFilters);
 
     dom.renameGroupBtn.addEventListener('click', async () => {
@@ -992,4 +1323,11 @@ export function initGallery({ onOpenLightbox, onOpenBatchDeleteModal, onOpenGrou
         await promptBatchGroupAssignment();
     });
 }
+
+
+
+
+
+
+
 

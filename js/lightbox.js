@@ -35,26 +35,124 @@ function renderFavoriteBtn(photo) {
     dom.favoriteBtn.setAttribute('aria-pressed', isFavorited ? 'true' : 'false');
 }
 
+function getStoryCommentCount(photo) {
+    return Array.isArray(photo.comments) ? photo.comments.length : Number(photo.commentsCount || 0);
+}
+
+function getStoryReactionCount(photo) {
+    return Object.values(photo.reactions || {}).reduce((sum, count) => sum + Number(count || 0), 0);
+}
+
+function getStoryCompletionScore(photo) {
+    let score = 20;
+    if (String(photo.caption || '').trim()) score += 28;
+    if ((photo.tags || []).length > 0) score += 22;
+    if (getPhotoGroupName(photo)) score += 12;
+    if (getStoryCommentCount(photo) > 0) score += 10;
+    if (getStoryReactionCount(photo) > 0) score += 10;
+    if (photo.favorited) score += 8;
+    return Math.min(100, score);
+}
+
+function buildStoryNarration(photo) {
+    const dateLabel = formatUploadDate(photo.uploadTime) || '某一天';
+    const groupName = getPhotoGroupName(photo);
+    const tags = normalizeTags(photo.tags).slice(0, 3).map((tag) => `#${tag}`);
+    const commentCount = getStoryCommentCount(photo);
+    const reactionCount = getStoryReactionCount(photo);
+    const pieces = [];
+
+    pieces.push(groupName ? `${dateLabel}，这张照片被收进了“${groupName}”这一册。` : `${dateLabel}，这张照片被留在了家庭相册里。`);
+    if (String(photo.caption || '').trim()) pieces.push(`它记下的是：${photo.caption}。`);
+    else pieces.push('它还没有写下文字，现在正适合补上一句当时的心情。');
+    if (tags.length > 0) pieces.push(`这段回忆的关键词是 ${tags.join('、')}。`);
+    if (commentCount > 0 || reactionCount > 0) pieces.push(`家人已经留下 ${commentCount} 条评论和 ${reactionCount} 次表情回应。`);
+    else pieces.push('还没有人留言或回应，也许下一句评论就会让它更像一个完整故事。');
+    if (photo.favorited) pieces.push('它已经被特别收藏，说明这不是一张会被轻易翻过去的照片。');
+    return pieces.join('');
+}
+
+function buildStorySequenceCard(label, photo, index) {
+    if (!photo || typeof index !== 'number' || index < 0) {
+        return `
+            <div class="story-sequence-card is-empty">
+                <span class="story-sequence-label">${escapeHtml(label)}</span>
+                <strong>这一段暂时还没有更多照片</strong>
+                <p>继续往相册里添新照片，故事线会在这里慢慢接长。</p>
+            </div>
+        `;
+    }
+    return `
+        <button class="story-sequence-card" type="button" data-story-jump="${index}">
+            <span class="story-sequence-label">${escapeHtml(label)}</span>
+            <div class="story-sequence-cover">
+                <img src="${escapeHtml(photo.thumbSrc || photo.src || '')}" alt="${escapeHtml(photo.name || '相邻照片')}" loading="lazy">
+            </div>
+            <strong>${escapeHtml(photo.caption || photo.name || '还没写故事')}</strong>
+            <p>${escapeHtml(formatUploadDate(photo.uploadTime) || '还没有记录日期')}</p>
+        </button>
+    `;
+}
+
 function renderLightboxStory(photo) {
     const tags = (photo.tags || [])
         .map((tag) => `<button class="story-tag filter-chip${tag === state.activeTagFilter ? ' active' : ''}" type="button" data-filter-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`)
         .join('');
     const groupName = getPhotoGroupName(photo);
     const groupBlock = groupName
-        ? `<div class="story-tags"><button class="story-tag filter-chip${groupName === state.activeGroupName && !state.searchKeyword.trim() ? ' active' : ''}" type="button" data-filter-group="${escapeHtml(groupName)}">\u5206\u7ec4 \u00b7 ${escapeHtml(groupName)}</button></div>`
+        ? `<div class="story-tags"><button class="story-tag filter-chip${groupName === state.activeGroupName && !state.searchKeyword.trim() ? ' active' : ''}" type="button" data-filter-group="${escapeHtml(groupName)}">分组 · ${escapeHtml(groupName)}</button></div>`
         : '';
     const isCurrentCover = photo.groupCoverPhotoId === photo.id;
+    const completionScore = getStoryCompletionScore(photo);
+    const commentCount = getStoryCommentCount(photo);
+    const reactionCount = getStoryReactionCount(photo);
+    const prevPhoto = state.currentPhotoIndex > 0 ? state.visiblePhotos[state.currentPhotoIndex - 1] : null;
+    const nextPhoto = state.currentPhotoIndex < state.visiblePhotos.length - 1 ? state.visiblePhotos[state.currentPhotoIndex + 1] : null;
+    const sequencePosition = state.currentPhotoIndex === null ? '' : `${state.currentPhotoIndex + 1} / ${state.visiblePhotos.length}`;
+
     dom.photoStory.innerHTML = `
-        <div class="story-header">
-            <div class="story-date">${formatUploadDate(photo.uploadTime) || '\u521a\u521a\u4e0a\u4f20'}</div>
-            <div class="story-header-actions">
-                ${groupName ? `<button class="story-edit-btn${isCurrentCover ? ' is-current' : ''}" type="button" data-set-group-cover="true" ${isCurrentCover ? 'disabled' : ''}>${isCurrentCover ? '\u5f53\u524d\u5c01\u9762' : '\u8bbe\u4e3a\u5206\u7ec4\u5c01\u9762'}</button>` : ''}
-                <button class="story-edit-btn" type="button" data-edit-details="true">${photo.caption || (photo.tags || []).length ? '\u7f16\u8f91\u4fe1\u606f' : '\u6dfb\u52a0\u4fe1\u606f'}</button>
+        <div class="story-shell">
+            <div class="story-header">
+                <div class="story-header-meta">
+                    <div class="story-date">${formatUploadDate(photo.uploadTime) || '刚刚上传'}</div>
+                    <div class="story-sequence-index">${escapeHtml(sequencePosition)}</div>
+                </div>
+                <div class="story-header-actions">
+                    ${groupName ? `<button class="story-edit-btn${isCurrentCover ? ' is-current' : ''}" type="button" data-set-group-cover="true" ${isCurrentCover ? 'disabled' : ''}>${isCurrentCover ? '当前封面' : '设为分组封面'}</button>` : ''}
+                    <button class="story-edit-btn" type="button" data-edit-details="true">${photo.caption || (photo.tags || []).length ? '编辑信息' : '添加信息'}</button>
+                </div>
+            </div>
+            <div class="story-progress">
+                <div class="story-progress-head">
+                    <span>故事完整度</span>
+                    <strong>${completionScore}%</strong>
+                </div>
+                <div class="story-progress-track"><span style="width:${completionScore}%"></span></div>
+            </div>
+            <div class="story-metrics">
+                <div class="story-metric"><span>标签</span><strong>${(photo.tags || []).length}</strong></div>
+                <div class="story-metric"><span>评论</span><strong>${commentCount}</strong></div>
+                <div class="story-metric"><span>回应</span><strong>${reactionCount}</strong></div>
+                <div class="story-metric"><span>收藏</span><strong>${photo.favorited ? '已收起' : '未标记'}</strong></div>
+            </div>
+            ${photo.caption ? `<div class="story-caption">${escapeHtml(photo.caption)}</div>` : '<div class="story-caption empty">这张照片还没有简介，点右上角按钮就可以补上一句故事。</div>'}
+            <div class="story-voice">
+                <span class="story-voice-kicker">家庭旁白</span>
+                <p>${escapeHtml(buildStoryNarration(photo))}</p>
+            </div>
+            ${groupBlock}
+            ${tags ? `<div class="story-tags">${tags}</div>` : '<div class="story-caption empty story-caption-inline">还没有标签，补上几个关键词后会更容易搜索和整理。</div>'}
+            <div class="story-sequence">
+                <div class="story-sequence-head">
+                    <span>前后片段</span>
+                    <em>${escapeHtml(sequencePosition || '当前照片')}</em>
+                </div>
+                <div class="story-sequence-grid">
+                    ${buildStorySequenceCard('上一段', prevPhoto, state.currentPhotoIndex - 1)}
+                    ${buildStorySequenceCard('下一段', nextPhoto, state.currentPhotoIndex + 1)}
+                </div>
             </div>
         </div>
-        ${photo.caption ? `<div class="story-caption">${escapeHtml(photo.caption)}</div>` : '<div class="story-caption empty">\u8fd9\u5f20\u7167\u7247\u8fd8\u6ca1\u6709\u7b80\u4ecb\uff0c\u70b9\u53f3\u4e0a\u89d2\u6309\u94ae\u5c31\u53ef\u4ee5\u8865\u4e0a\u4e00\u53e5\u6545\u4e8b\u3002</div>'}
-        ${groupBlock}
-        ${tags ? `<div class="story-tags">${tags}</div>` : '<div class="story-caption empty" style="margin-top: 10px;">\u8fd8\u6ca1\u6709\u6807\u7b7e\uff0c\u8865\u4e0a\u6807\u7b7e\u540e\u4f1a\u66f4\u5bb9\u6613\u641c\u7d22\u548c\u6574\u7406\u3002</div>'}
     `;
 }
 
@@ -270,6 +368,14 @@ export function initLightbox({ onRenderGallery, onOpenSingleDeleteModal }) {
             return;
         }
 
+        const jumpBtn = event.target.closest('[data-story-jump]');
+        if (jumpBtn) {
+            event.stopPropagation();
+            const nextIndex = Number(jumpBtn.dataset.storyJump);
+            if (!Number.isNaN(nextIndex) && nextIndex >= 0 && nextIndex < state.visiblePhotos.length) openLightbox(nextIndex);
+            return;
+        }
+
         const chip = event.target.closest('[data-filter-tag], [data-filter-group]');
         if (!chip) return;
         closeLightbox();
@@ -352,3 +458,6 @@ export function initLightbox({ onRenderGallery, onOpenSingleDeleteModal }) {
         else if (event.key === 'ArrowRight' && state.currentPhotoIndex < state.visiblePhotos.length - 1) openLightbox(state.currentPhotoIndex + 1);
     });
 }
+
+
+

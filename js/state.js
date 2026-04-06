@@ -1,4 +1,4 @@
-﻿export const GALLERY_IMAGE_PLACEHOLDER = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
+export const GALLERY_IMAGE_PLACEHOLDER = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
 export const MAX_PARALLEL_IMAGE_LOADS = 4;
 export const IMAGE_RETRY_LIMIT = 1;
 
@@ -20,6 +20,7 @@ export const state = {
     activeGroupName: '全部图片',
     sortMode: 'custom',
     contentFilter: 'all',
+    viewMode: 'grid',
     draggedPhotoId: null,
     dragMoved: false,
     reorderSaving: false,
@@ -60,3 +61,4 @@ export function resetEditorState() {
     state.currentFilter = 'none';
     state.currentEdit = createDefaultEditState();
 }
+

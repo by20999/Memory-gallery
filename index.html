@@ -80,6 +80,8 @@
             </article>
         </section>
 
+        <section class="ritual-board" id="ritualBoard" hidden></section>
+
         <div class="upload-section" id="uploadSection">
             <label for="fileInput" class="upload-btn" id="uploadBtn">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -129,6 +131,10 @@
                         <option value="favorites">&#20165;&#30475;&#25910;&#34255;</option>
                     </select>
                 </label>
+            </div>
+            <div class="view-toggle" aria-label="相册视图切换">
+                <button class="view-toggle-btn active" id="gridViewBtn" type="button" data-view-mode="grid">网格</button>
+                <button class="view-toggle-btn" id="timelineViewBtn" type="button" data-view-mode="timeline">时间线</button>
             </div>
             <div class="search-hint" id="searchHint">&#21487;&#20197;&#25628;&#32034;&#20998;&#32452;&#12289;&#25991;&#20214;&#21517;&#12289;&#25551;&#36848;&#25110;&#26631;&#31614;&#65292;&#20063;&#21487;&#20197;&#30452;&#25509;&#28857;&#20987;&#26631;&#31614;&#24555;&#36895;&#31579;&#36873;&#12290;</div>
             <div class="gallery-status" id="galleryStatus" hidden></div>

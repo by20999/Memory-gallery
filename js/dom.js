@@ -1,4 +1,4 @@
-﻿export const dom = {
+export const dom = {
     fileInput: document.getElementById('fileInput'),
     uploadSection: document.getElementById('uploadSection'),
     uploadDropHint: document.getElementById('uploadDropHint'),
@@ -6,6 +6,7 @@
     memoryBoard: document.getElementById('memoryBoard'),
     memoryRecentList: document.getElementById('memoryRecentList'),
     memoryTodayList: document.getElementById('memoryTodayList'),
+    ritualBoard: document.getElementById('ritualBoard'),
     lightbox: document.getElementById('lightbox'),
     lightboxImg: document.getElementById('lightboxImg'),
     lightboxImgWrap: document.querySelector('.lightbox-img-wrap'),
@@ -19,6 +20,8 @@
     searchInput: document.getElementById('searchInput'),
     sortSelect: document.getElementById('sortSelect'),
     contentFilterSelect: document.getElementById('contentFilterSelect'),
+    gridViewBtn: document.getElementById('gridViewBtn'),
+    timelineViewBtn: document.getElementById('timelineViewBtn'),
     clearSearchBtn: document.getElementById('clearSearchBtn'),
     galleryStatus: document.getElementById('galleryStatus'),
     createGroupBtn: document.getElementById('createGroupBtn'),
@@ -78,6 +81,7 @@
     themeIcon: document.querySelector('.theme-icon'),
     themePackageBtns: [...document.querySelectorAll('.theme-package-btn')],
     themePresets: [...document.querySelectorAll('.theme-preset')],
+    viewToggleBtns: [...document.querySelectorAll('[data-view-mode]')],
     filterBtns: [...document.querySelectorAll('.filter-btn')],
     reactionBtns: [...document.querySelectorAll('.reaction-btn')]
 };
@@ -88,3 +92,4 @@ export const editSliders = [
     { id: 'editSaturate', valId: 'saturateVal', key: 'saturate', unit: '%' },
     { id: 'editBlur', valId: 'blurVal', key: 'blur', unit: 'px' }
 ];
+
