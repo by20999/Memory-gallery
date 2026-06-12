@@ -4,9 +4,27 @@ const sharp = require('sharp');
 const { uploadDir } = require('../config');
 const { getThumbnailFilename, getThumbnailPath, normalizePhotoEntry, savePhotoData } = require('../data/photoStore');
 
-const THUMB_SIZE = 640;
-const THUMB_QUALITY = 82;
+const THUMB_SIZE = 1600;
+const THUMB_QUALITY = 92;
 const THUMB_CONCURRENCY = 4;
+
+async function shouldRegenerateThumbnail(photoPath, thumbPath) {
+    if (!fs.existsSync(thumbPath)) return true;
+
+    try {
+        const [photoMeta, thumbMeta] = await Promise.all([
+            sharp(photoPath).metadata(),
+            sharp(thumbPath).metadata()
+        ]);
+        const sourceMaxSide = Math.max(Number(photoMeta.width || 0), Number(photoMeta.height || 0));
+        const thumbMaxSide = Math.max(Number(thumbMeta.width || 0), Number(thumbMeta.height || 0));
+        const targetMaxSide = Math.min(THUMB_SIZE, sourceMaxSide);
+        return thumbMaxSide < targetMaxSide;
+    } catch (error) {
+        console.warn(`检查缩略图尺寸失败，将尝试重建: ${path.basename(thumbPath)}`, error.message);
+        return true;
+    }
+}
 
 async function ensureThumbnailForPhoto(photoId, photoData) {
     const entry = normalizePhotoEntry(photoData[photoId]);
@@ -14,7 +32,10 @@ async function ensureThumbnailForPhoto(photoId, photoData) {
     const thumbPath = getThumbnailPath(photoId, entry);
     const nextEntry = { ...entry, thumbnail: thumbFilename };
 
-    if (fs.existsSync(thumbPath)) {
+    const photoPath = path.join(uploadDir, photoId);
+    const needsRegenerate = await shouldRegenerateThumbnail(photoPath, thumbPath);
+
+    if (!needsRegenerate) {
         if (entry.thumbnail !== thumbFilename) {
             photoData[photoId] = nextEntry;
             return true;
@@ -22,7 +43,7 @@ async function ensureThumbnailForPhoto(photoId, photoData) {
         return false;
     }
 
-    await sharp(path.join(uploadDir, photoId))
+    await sharp(photoPath)
         .rotate()
         .resize(THUMB_SIZE, THUMB_SIZE, { fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: THUMB_QUALITY, mozjpeg: true })

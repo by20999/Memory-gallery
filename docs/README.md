@@ -14,7 +14,7 @@
 | `development-constraints.md` | 开发约束、安全约束、文档约束。 |
 | `project-plan.md` | 项目计划。 |
 | `progress.md` | 项目进度。 |
-| `project-log.md` | 项目日志，当前为空。 |
+| `project-log.md` | 项目建设日志，按日期记录完成内容、决策、验证和后续事项。 |
 | `roadmap.md` | 后续方向。 |
 | `improvements.md` | 改进清单和技术债。 |
 | `deployment-operations.md` | 部署、备份、恢复和运维。 |
@@ -28,3 +28,5 @@
 - 目录和模块变化更新 `module-map.md`。
 - 部署方式变化更新 `deployment-operations.md`。
 - 计划或优先级变化更新 `project-plan.md`、`roadmap.md` 或 `improvements.md`。
+- 每轮项目建设、功能新增、UI/交互调整或重要修复都要追加 `project-log.md`。
+- 影响架构边界、存储策略、产品定位或长期维护习惯的决策，要同步写入 `../memory/decision-log.md`。

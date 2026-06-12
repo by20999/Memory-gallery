@@ -172,6 +172,14 @@ function buildTimelineMetaText(itemCount) {
     return `共 ${itemCount} 张图片，拖动节点可重排顺序，也可以用上移/下移做更细的流线微调。`;
 }
 
+function getStoryDisplayPhotoSrc(photo) {
+    return photo?.src || photo?.thumbSrc || '';
+}
+
+function getStoryPreviewPhotoSrc(photo) {
+    return photo?.thumbSrc || photo?.src || '';
+}
+
 function buildDragMetaText(targetIndex, curveOffset) {
     const direction = curveOffset > 0 ? '向下' : curveOffset < 0 ? '向上' : '归中';
     const intensity = Math.abs(Math.round(curveOffset * 100));
@@ -181,7 +189,7 @@ function buildDragMetaText(targetIndex, curveOffset) {
 function buildStoryCard(story) {
     const active = story.id === state.activeStoryId;
     const cover = story.coverPhoto
-        ? `<img src="${escapeHtml(story.coverPhoto.thumbSrc || story.coverPhoto.src)}" alt="${escapeHtml(story.name)}">`
+        ? `<img src="${escapeHtml(getStoryPreviewPhotoSrc(story.coverPhoto))}" alt="${escapeHtml(story.name)}">`
         : '<div class="story-list-cover-fallback">忆</div>';
 
     return `
@@ -209,7 +217,7 @@ function buildStoryNode(item, point, index) {
             <div class="story-node-card">
                 <button class="story-node-remove" type="button" data-story-remove-item="${escapeHtml(item.id)}" aria-label="移出故事">×</button>
                 <div class="story-node-media">
-                    <img src="${escapeHtml(photo.thumbSrc || photo.src || '')}" alt="${escapeHtml(photo.name || '故事图片')}" loading="lazy">
+                    <img src="${escapeHtml(getStoryDisplayPhotoSrc(photo))}" alt="${escapeHtml(photo.name || '故事图片')}" loading="lazy">
                 </div>
                 <div class="story-node-body">
                     <div class="story-node-toolbar">

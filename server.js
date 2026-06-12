@@ -33,19 +33,17 @@ app.use('/js', express.static(path.join(projectRoot, 'js'), {
 app.use('/uploads', express.static(uploadDir, {
     etag: true,
     fallthrough: false,
-    immutable: true,
-    maxAge: UPLOAD_CACHE_MAX_AGE,
+    maxAge: 0,
     setHeaders: (res) => {
-        res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+        res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
     }
 }));
 app.use('/thumbnails', express.static(thumbsDir, {
     etag: true,
     fallthrough: false,
-    immutable: true,
-    maxAge: UPLOAD_CACHE_MAX_AGE,
+    maxAge: 0,
     setHeaders: (res) => {
-        res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+        res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
     }
 }));
 app.use(express.json({ limit: '256kb' }));

@@ -27,11 +27,27 @@ export function escapeHtml(text) {
         .replace(/'/g, '&#39;');
 }
 
+export const HIGH_FIDELITY_UPLOAD_MAX_BYTES = 100 * 1024 * 1024;
+export const HIGH_FIDELITY_UPLOAD_MAX_SIZE = 5120;
+
+function getOutputFileName(fileName, mimeType, originalMimeType) {
+    if (!mimeType || mimeType === originalMimeType) return fileName;
+    const extensionMap = {
+        'image/jpeg': '.jpg',
+        'image/webp': '.webp',
+        'image/png': '.png'
+    };
+    const nextExtension = extensionMap[mimeType] || '.jpg';
+    const baseName = String(fileName || 'photo').replace(/\.[^.]+$/, '');
+    return `${baseName}${nextExtension}`;
+}
+
 export function resizeImageFile(file, options = {}) {
     const {
         maxSize = 2560,
         quality = 0.92,
-        mimeType = file.type || 'image/jpeg'
+        mimeType = file.type || 'image/jpeg',
+        forceEncode = false
     } = options;
 
     return new Promise((resolve, reject) => {
@@ -41,15 +57,25 @@ export function resizeImageFile(file, options = {}) {
         image.onload = () => {
             URL.revokeObjectURL(url);
             let { width, height } = image;
-            if (width <= maxSize && height <= maxSize && mimeType === file.type) {
+            if (!forceEncode && width <= maxSize && height <= maxSize && mimeType === file.type) {
                 resolve(file);
                 return;
             }
 
-            if (width > height) {
+            if (width > maxSize || height > maxSize) {
+                if (width > height) {
+                    height = Math.round((height * maxSize) / width);
+                    width = maxSize;
+                } else {
+                    width = Math.round((width * maxSize) / height);
+                    height = maxSize;
+                }
+            }
+
+            if (width > height && width > maxSize) {
                 height = Math.round((height * maxSize) / width);
                 width = maxSize;
-            } else {
+            } else if (height > maxSize) {
                 width = Math.round((width * maxSize) / height);
                 height = maxSize;
             }
@@ -64,7 +90,7 @@ export function resizeImageFile(file, options = {}) {
                     reject(new Error('图片压缩失败'));
                     return;
                 }
-                resolve(new File([blob], file.name, { type: mimeType }));
+                resolve(new File([blob], getOutputFileName(file.name, mimeType, file.type), { type: mimeType }));
             }, mimeType, quality);
         };
 
@@ -75,4 +101,33 @@ export function resizeImageFile(file, options = {}) {
 
         image.src = url;
     });
+}
+
+export async function prepareHighFidelityUploadFile(file, options = {}) {
+    const {
+        directMaxBytes = HIGH_FIDELITY_UPLOAD_MAX_BYTES,
+        maxSize = HIGH_FIDELITY_UPLOAD_MAX_SIZE
+    } = options;
+
+    if (file.size <= directMaxBytes) return file;
+
+    const sourceType = String(file.type || '').toLowerCase();
+    const outputType = sourceType === 'image/webp' ? 'image/webp' : 'image/jpeg';
+    const attempts = [
+        { maxSize, quality: 0.96 },
+        { maxSize: 4096, quality: 0.94 },
+        { maxSize: 3200, quality: 0.92 }
+    ];
+
+    let prepared = file;
+    for (const attempt of attempts) {
+        prepared = await resizeImageFile(file, {
+            ...attempt,
+            mimeType: outputType,
+            forceEncode: true
+        });
+        if (prepared.size <= directMaxBytes) return prepared;
+    }
+
+    return prepared;
 }

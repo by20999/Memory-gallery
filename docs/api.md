@@ -94,7 +94,8 @@ X-Admin-Password: <DELETE_PASSWORD>
 
 限制：
 
-- 单张文件最大 10MB。
+- 单张文件最大 100MB。
+- 前端会优先上传原图；超过限制的超大图片会先做高质量降采样，再交给后端保存。
 - 后端只接受图片 MIME 类型。
 - 后端会计算图片内容 hash；如果检测到重复图片，会跳过重复文件并在响应 `duplicates` 中返回说明。
 
@@ -107,10 +108,10 @@ X-Admin-Password: <DELETE_PASSWORD>
 ```json
 {
   "caption": "照片描述",
-  "tags": ["旅行", "家庭"],
+  "tags": ["旅行", "纪念"],
   "renameTo": "新的文件名",
   "eventDate": "2026-06-09",
-  "eventName": "家庭旅行"
+  "eventName": "海边旅行"
 }
 ```
 
@@ -145,9 +146,9 @@ X-Admin-Password: <DELETE_PASSWORD>
 {
   "photoIds": ["a.jpg", "b.jpg"],
   "caption": "统一描述",
-  "tags": ["家庭", "旅行"],
+  "tags": ["纪念", "旅行"],
   "eventDate": "2026-06-09",
-  "eventName": "家庭旅行"
+  "eventName": "海边旅行"
 }
 ```
 

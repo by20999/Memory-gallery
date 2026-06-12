@@ -9,11 +9,14 @@
 <body>
     <!-- 主题控制面板 -->
     <div class="theme-panel" id="themePanel">
-        <button class="theme-toggle-btn" id="themeToggleBtn" title="切换深色/浅色模式">
-            <span class="theme-icon">🌙</span>
+        <button class="theme-toggle-btn" id="themeToggleBtn" title="切换深色/浅色模式" aria-label="切换深色/浅色模式" data-mode="light">
+            <span class="theme-icon" aria-hidden="true"></span>
         </button>
-        <button class="theme-panel-btn" id="themePanelBtn" title="自定义主题">
-            <span>🎨</span>
+        <button class="theme-panel-btn" id="themePanelBtn" title="自定义主题" aria-label="自定义主题">
+            <svg class="theme-tool-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <path d="M12 3a9 9 0 0 0 0 18h1.5a1.8 1.8 0 0 0 .8-3.4 1.8 1.8 0 0 1 .8-3.4H16a5 5 0 0 0 0-10z"/>
+                <path d="M7.5 10.5h.01M9.5 7.5h.01M13 7h.01"/>
+            </svg>
         </button>
         <div class="theme-dropdown" id="themeDropdown">
             <div class="theme-dropdown-title">主题包</div>
@@ -45,28 +48,33 @@
 
     <div class="container">
         <header>
-            <div class="header-emoji-row">
-                <span class="header-emoji float-1">🌸</span>
-                <span class="header-emoji float-2">📷</span>
-                <span class="header-emoji float-3">✨</span>
-                <span class="header-emoji float-4">🎞️</span>
-                <span class="header-emoji float-5">🌟</span>
+            <div class="header-main">
+                <div class="header-copy">
+                    <div class="header-kicker" id="headerKicker">把喜欢的瞬间，整理成自己的回忆档案</div>
+                    <h1>我的相册</h1>
+                    <p class="subtitle" id="dynamicSubtitle">记录美好瞬间</p>
+                    <p class="header-description" id="headerDescription">随手存图、写下片段、慢慢整理，把日常、旅行、灵感和重要的人都留在这本相册里。</p>
+                </div>
+                <div class="header-side">
+                    <div class="header-actions" aria-label="常用操作">
+                        <button class="recommend-theme-btn header-theme-action" id="recommendThemeBtn" type="button">
+                            <span class="festival-badge" id="festivalBadge">节日推荐</span>
+                            <span class="recommend-theme-copy" id="recommendThemeCopy">切换主题</span>
+                        </button>
+                        <button class="system-toggle-btn" id="systemToggleBtn" type="button" aria-expanded="false">
+                            <svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                                <path d="M4 12h4l2-5 4 10 2-5h4"/>
+                            </svg>
+                            <span>系统状态</span>
+                        </button>
+                    </div>
+                    <div class="header-stats" id="headerStats"></div>
+                    <div class="site-view-switcher" aria-label="站点视图切换">
+                        <button class="site-view-btn active" type="button" data-site-view="album">主相册</button>
+                        <button class="site-view-btn" type="button" data-site-view="story">图片故事模式</button>
+                    </div>
+                </div>
             </div>
-            <div class="header-kicker" id="headerKicker">把喜欢的瞬间，都收进自己的照片宇宙</div>
-            <h1>我的相册</h1>
-            <p class="subtitle" id="dynamicSubtitle">记录美好瞬间</p>
-            <p class="header-description" id="headerDescription">随手存图、写下片段、慢慢整理，把日常和灵感都留在这本只属于你的相册里。</p>
-            <div class="header-actions">
-                <span class="festival-badge" id="festivalBadge">节日推荐</span>
-                <button class="recommend-theme-btn" id="recommendThemeBtn" type="button">一键切换主题</button>
-                <button class="system-toggle-btn" id="systemToggleBtn" type="button" aria-expanded="false">系统状态</button>
-            </div>
-            <div class="header-stats" id="headerStats"></div>
-            <div class="site-view-switcher" aria-label="站点视图切换">
-                <button class="site-view-btn active" type="button" data-site-view="album">主相册</button>
-                <button class="site-view-btn" type="button" data-site-view="story">图片故事模式</button>
-            </div>
-
         </header>
 
         <div class="gallery-status global-status" id="globalStatus" hidden></div>
@@ -78,8 +86,21 @@
                     <p>快速检查本地相册的数据、缩略图和重复照片情况。</p>
                 </div>
                 <div class="system-panel-actions">
-                    <button type="button" id="systemRefreshBtn">重新检查</button>
-                    <button type="button" id="systemOpenUploadsBtn">打开 uploads</button>
+                    <button type="button" id="systemRefreshBtn">
+                        <svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                            <path d="M20 11a8 8 0 0 0-14.4-4.8L4 8"/>
+                            <path d="M4 4v4h4"/>
+                            <path d="M4 13a8 8 0 0 0 14.4 4.8L20 16"/>
+                            <path d="M20 20v-4h-4"/>
+                        </svg>
+                        <span>重新检查</span>
+                    </button>
+                    <button type="button" id="systemOpenUploadsBtn">
+                        <svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                            <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"/>
+                        </svg>
+                        <span>打开 uploads</span>
+                    </button>
                 </div>
             </div>
             <div class="system-status-body" id="systemStatusBody"></div>
@@ -98,7 +119,7 @@
             <article class="memory-panel">
                 <div class="memory-panel-head">
                     <h2>&#24448;&#24180;&#20170;&#26085;</h2>
-                    <p>&#21516;&#19968;&#22825;&#30041;&#19979;&#36807;&#30340;&#23478;&#24237;&#29255;&#27573;&#65292;&#20250;&#22312;&#36825;&#37324;&#37325;&#36898;&#12290;</p>
+                    <p>同一天留下过的回忆片段，会在这里重逢。</p>
                 </div>
                 <div class="memory-strip" id="memoryTodayList"></div>
             </article>
@@ -125,16 +146,16 @@
         </div>
 
         <div class="upload-meta-panel">
-            <input type="text" id="captionInput" placeholder="给这一组照片写一句描述，例如：外婆生日的小聚会" maxlength="80">
+            <input type="text" id="captionInput" placeholder="给这一组照片写一句描述" maxlength="80">
             <select id="captionTemplateSelect" class="upload-template-select" aria-label="描述模板">
                 <option value="">描述模板</option>
-                <option value="这一天值得被记住。">这一天值得被记住。</option>
-                <option value="一次简单但很开心的日常。">一次简单但很开心的日常。</option>
-                <option value="和家人在一起的片段。">和家人在一起的片段。</option>
-                <option value="旅行路上的小瞬间。">旅行路上的小瞬间。</option>
+                <option value="今天这组很有氛围。">今天这组很有氛围。</option>
+                <option value="随手一拍也很出片。">随手一拍也很出片。</option>
+                <option value="和重要的人一起闪闪发光。">和重要的人一起闪闪发光。</option>
+                <option value="这段路上的松弛感。">这段路上的松弛感。</option>
             </select>
-            <input type="date" id="eventDateInput" aria-label="事件日期">
-            <input type="text" id="eventNameInput" placeholder="事件，例如：春节、生日、旅行" maxlength="40">
+            <input type="text" id="eventDateInput" placeholder="年 / 月 / 日" aria-label="事件日期" inputmode="numeric" pattern="\d{4}-\d{2}-\d{2}|\d{4}/\d{1,2}/\d{1,2}|\d{4} 年 \d{1,2} 月 \d{1,2} 日">
+            <input type="text" id="eventNameInput" placeholder="事件，例如：live、旅行、生日" maxlength="40">
             <input type="text" id="tagsInput" placeholder="标签用逗号分开，例如：旅行,live,春日穿搭" maxlength="60">
             <select id="uploadGroupSelect" class="upload-group-select" aria-label="上传时加入分组">
                 <option value="">不加入分组</option>
@@ -352,8 +373,18 @@
     <!-- 昵称设置弹窗 -->
     <div class="nickname-modal" id="nicknameModal">
         <div class="nickname-box">
-            <div class="nickname-title">👋 欢迎来到你的相册</div>
+            <div class="nickname-title">欢迎来到你的相册</div>
             <div class="nickname-desc">先设置一个昵称，之后留言和互动都会显示这个名字</div>
+            <div class="avatar-picker">
+                <button class="avatar-preview-btn" id="avatarPreviewBtn" type="button" title="选择头像" aria-label="选择头像">
+                    <span class="avatar-preview" id="avatarPreview">?</span>
+                </button>
+                <div class="avatar-picker-actions">
+                    <label class="avatar-upload-btn" for="avatarInput">选择头像</label>
+                    <button class="avatar-remove-btn" id="avatarRemoveBtn" type="button">移除</button>
+                </div>
+                <input type="file" id="avatarInput" accept="image/*" hidden>
+            </div>
             <input type="text" id="nicknameInput" placeholder="输入昵称（2-10个字）" maxlength="10" autocomplete="off">
             <div class="nickname-error" id="nicknameError"></div>
             <button id="nicknameConfirmBtn" class="nickname-confirm">进入相册</button>
@@ -364,7 +395,12 @@
     <div class="user-badge" id="userBadge">
         <span class="user-avatar" id="userAvatar"></span>
         <span class="user-name" id="userName"></span>
-        <button class="user-edit-btn" id="userEditBtn" title="修改昵称">✏️</button>
+        <button class="user-edit-btn" id="userEditBtn" title="修改昵称" aria-label="修改昵称">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17z"/>
+                <path d="M13.5 7.5l3 3"/>
+            </svg>
+        </button>
     </div>
 
     <script type="module" src="js/main.js"></script>

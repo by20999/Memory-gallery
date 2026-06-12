@@ -23,6 +23,7 @@ const {
 const { ensureAndPersistThumbnails } = require('../services/thumbnailService');
 const { loadGroupData, saveGroupData, syncGroupDataWithPhotos } = require('../data/groupStore');
 
+const MAX_UPLOAD_FILE_SIZE_BYTES = 100 * 1024 * 1024;
 const WINDOWS_RESERVED_FILENAME_PATTERN = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
 
 function hashFile(filePath) {
@@ -117,12 +118,39 @@ function updateGroupCoverPhotoIds(groupData, oldPhotoId, nextPhotoId) {
     );
 }
 
+function appendAssetVersion(src, version) {
+    if (!src) return src;
+    const normalizedVersion = Number.isFinite(Number(version)) ? Math.round(Number(version)) : Date.now();
+    return `${src}${src.includes('?') ? '&' : '?'}v=${normalizedVersion}`;
+}
+
+function getFileVersion(filePath, fallback = Date.now()) {
+    try {
+        return fs.statSync(filePath).mtimeMs;
+    } catch {
+        return fallback;
+    }
+}
+
+function getVersionedPhotoSrc(photoId) {
+    const photoPath = path.join(uploadDir, photoId);
+    return appendAssetVersion(`/uploads/${photoId}`, getFileVersion(photoPath));
+}
+
+function getVersionedThumbnailSrc(photoId, entry) {
+    const thumbSrc = getThumbnailSrc(photoId, entry);
+    if (!thumbSrc) return getVersionedPhotoSrc(photoId);
+    const photoPath = path.join(uploadDir, photoId);
+    const thumbPath = getThumbnailPath(photoId, entry);
+    return appendAssetVersion(thumbSrc, getFileVersion(thumbPath, getFileVersion(photoPath)));
+}
+
 function buildPhotoResponse(photoId, photoData, groupData, uploadTime) {
     const meta = getPhotoMeta(photoId, photoData);
     return {
         id: photoId,
-        src: `/uploads/${photoId}`,
-        thumbSrc: getThumbnailSrc(photoId, photoData[photoId]) || `/uploads/${photoId}`,
+        src: getVersionedPhotoSrc(photoId),
+        thumbSrc: getVersionedThumbnailSrc(photoId, photoData[photoId]),
         name: path.parse(photoId).name,
         uploadTime,
         likes: meta.likes,
@@ -156,7 +184,7 @@ function createPhotosRouter() {
 
     const upload = multer({
         storage,
-        limits: { fileSize: 10 * 1024 * 1024 },
+        limits: { fileSize: MAX_UPLOAD_FILE_SIZE_BYTES },
         fileFilter: (req, file, cb) => {
             if (file.mimetype.startsWith('image/')) cb(null, true);
             else cb(new Error('只允许上传图片文件'));
@@ -217,8 +245,8 @@ function createPhotosRouter() {
 
         res.json({
             id: photoId,
-            src: `/uploads/${photoId}`,
-            thumbSrc: getThumbnailSrc(photoId, photoData[photoId]) || `/uploads/${photoId}`,
+            src: getVersionedPhotoSrc(photoId),
+            thumbSrc: getVersionedThumbnailSrc(photoId, photoData[photoId]),
             name: path.parse(photoId).name,
             likes: details.likes,
             comments: details.comments,
@@ -417,8 +445,8 @@ function createPhotosRouter() {
                 success: true,
                 photoId: nextPhotoId,
                 oldPhotoId: photoId,
-                src: `/uploads/${nextPhotoId}`,
-                thumbSrc: getThumbnailSrc(nextPhotoId, resultEntry) || `/uploads/${nextPhotoId}`,
+                src: getVersionedPhotoSrc(nextPhotoId),
+                thumbSrc: getVersionedThumbnailSrc(nextPhotoId, resultEntry),
                 name: path.parse(nextPhotoId).name,
                 caption: resultEntry.caption,
                 tags: resultEntry.tags,
@@ -443,7 +471,21 @@ function createPhotosRouter() {
         }
     });
 
-    router.post('/upload', upload.array('photos', 10), async (req, res) => {
+    function handlePhotoUpload(req, res, next) {
+        upload.array('photos', 10)(req, res, (error) => {
+            if (!error) {
+                next();
+                return;
+            }
+            if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+                res.status(413).json({ error: '单张图片不能超过 100MB，请换一张更小的原图或让前端完成高质量处理后再上传。' });
+                return;
+            }
+            res.status(400).json({ error: error.message || '上传失败，请检查图片文件后重试。' });
+        });
+    }
+
+    router.post('/upload', handlePhotoUpload, async (req, res) => {
         try {
             if (!req.files || req.files.length === 0) {
                 return res.status(400).json({ error: '没有上传文件' });
@@ -523,9 +565,10 @@ function createPhotosRouter() {
 
             const photos = acceptedFiles.map((file, index) => ({
                 id: file.filename,
-                src: `/uploads/${file.filename}`,
-                thumbSrc: getThumbnailSrc(file.filename, photoData[file.filename]) || `/uploads/${file.filename}`,
+                src: getVersionedPhotoSrc(file.filename),
+                thumbSrc: getVersionedThumbnailSrc(file.filename, photoData[file.filename]),
                 name: path.parse(file.filename).name,
+                uploadTime: getFileVersion(path.join(uploadDir, file.filename)),
                 caption,
                 tags,
                 order: startOrder + index,

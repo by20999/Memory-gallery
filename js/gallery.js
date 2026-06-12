@@ -4,6 +4,7 @@ import { fetchPhotos, reorderPhotos, createGroup, renameGroup, updateBatchPhotoD
 import { escapeHtml, formatUploadMonth, formatUploadDate } from './utils.js';
 import { showStatusNotice, clearStatusNotice } from './feedback.js';
 import { promptAddPhotoToStory, promptAddGroupToStory } from './story.js';
+import { refreshEnhancedSelects } from './select.js';
 
 const DEFAULT_GROUP_NAME = '\u5168\u90e8\u56fe\u7247';
 const UNGROUPED_GROUP_NAME = '\u672a\u5206\u7ec4';
@@ -19,6 +20,18 @@ let openBatchDeleteModalHandler = () => {};
 let openGroupDeleteModalHandler = () => {};
 let recentUploadedPhotoIds = new Set();
 let recentUploadCleanupTimer = null;
+
+function getOriginalPhotoSrc(photo) {
+    return photo?.src || photo?.thumbSrc || GALLERY_IMAGE_PLACEHOLDER;
+}
+
+function getPreviewPhotoSrc(photo) {
+    return photo?.thumbSrc || photo?.src || GALLERY_IMAGE_PLACEHOLDER;
+}
+
+function getDisplayPhotoSrc(photo) {
+    return getOriginalPhotoSrc(photo);
+}
 
 function normalizeCompare(value) {
     return String(value || '').trim().toLowerCase();
@@ -244,6 +257,7 @@ function renderUploadGroupOptions() {
         dom.uploadGroupSelect.appendChild(option);
     });
     if (previousValue && groupNames.includes(previousValue)) dom.uploadGroupSelect.value = previousValue;
+    refreshEnhancedSelects();
 }
 
 function getSearchableText(photo) {
@@ -402,7 +416,7 @@ function renderGroupNav() {
         cover.className = 'group-nav-cover';
         if (summary.coverPhoto) {
             const coverImg = document.createElement('img');
-            coverImg.src = summary.coverPhoto.thumbSrc || summary.coverPhoto.src || GALLERY_IMAGE_PLACEHOLDER;
+            coverImg.src = getOriginalPhotoSrc(summary.coverPhoto);
             coverImg.alt = `${summary.name} \u5c01\u9762`;
             cover.appendChild(coverImg);
         } else {
@@ -458,7 +472,7 @@ function buildMemoryCard(photo) {
     return `
         <button class="memory-card" type="button" data-memory-photo-id="${escapeHtml(photo.id)}">
             <div class="memory-card-cover">
-                <img src="${escapeHtml(photo.thumbSrc || photo.src || GALLERY_IMAGE_PLACEHOLDER)}" alt="${escapeHtml(photo.name || '\u5bb6\u5ead\u7167\u7247')}" loading="lazy">
+                <img src="${escapeHtml(getDisplayPhotoSrc(photo))}" alt="${escapeHtml(photo.name || '\u5bb6\u5ead\u7167\u7247')}" loading="lazy">
                 ${photo.favorited ? '<span class=\"memory-card-badge\">\u2605 \u6536\u85cf</span>' : ''}
             </div>
             <div class="memory-card-meta">
@@ -663,7 +677,7 @@ function renderTimelineGallery(visibleIndexMap) {
             const thumbOpenable = !photo.isLocalPreview && typeof thumbIndex === 'number';
             return `
                 <button class="timeline-thumb${thumbOpenable ? '' : ' is-disabled'}${isRecentUploadedPhoto(photo.id) ? ' recent-upload' : ''}" type="button" ${thumbOpenable ? `data-timeline-index="${thumbIndex}"` : 'disabled'}>
-                    <img src="${escapeHtml(photo.thumbSrc || photo.src || GALLERY_IMAGE_PLACEHOLDER)}" alt="${escapeHtml(photo.name || '时间线照片')}" loading="lazy">
+                    <img src="${escapeHtml(getPreviewPhotoSrc(photo))}" alt="${escapeHtml(photo.name || '时间线照片')}" loading="lazy">
                     <span class="timeline-thumb-label">${escapeHtml(photo.caption || photo.name || '还没补描述')}</span>
                 </button>
             `;
@@ -690,7 +704,7 @@ function renderTimelineGallery(visibleIndexMap) {
                     </div>
                     <div class="timeline-feature">
                         <button class="timeline-feature-media${featuredOpenable ? '' : ' is-disabled'}${isRecentUploadedPhoto(featured.id) ? ' recent-upload' : ''}" type="button" ${featuredOpenable ? `data-timeline-index="${featuredIndex}"` : 'disabled'}>
-                            <img src="${escapeHtml(featured.thumbSrc || featured.src || GALLERY_IMAGE_PLACEHOLDER)}" alt="${escapeHtml(featured.name || '时间线封面')}" loading="lazy">
+                            <img src="${escapeHtml(getOriginalPhotoSrc(featured))}" alt="${escapeHtml(featured.name || '时间线封面')}" loading="lazy">
                             ${featured.favorited ? '<span class="timeline-photo-badge">收藏</span>' : ''}
                             ${featured.isLocalPreview ? '<span class="timeline-photo-badge upload">上传中</span>' : ''}
                         </button>
@@ -1070,7 +1084,7 @@ function renderEmptyState() {
                     ? '\u8fd8\u6ca1\u6709\u6536\u85cf\u7684\u7167\u7247'
                     : state.activeGroupName !== DEFAULT_GROUP_NAME
                     ? `\u201c${state.activeGroupName}\u201d\u5206\u7ec4\u91cc\u8fd8\u6ca1\u6709\u56fe\u7247`
-                    : '\u8fd9\u91cc\u8fd8\u6ca1\u6709\u5bb6\u5ead\u7167\u7247';
+                    : '\u8fd9\u91cc\u8fd8\u6ca1\u6709\u7167\u7247';
     const desc = isLoadError
         ? state.loadErrorMessage
         : isSearching
@@ -1205,11 +1219,11 @@ export function renderGallery() {
             const img = document.createElement('img');
             img.alt = photo.name || '新上传的照片';
             if (photo.isLocalPreview) {
-                img.src = photo.thumbSrc || photo.src || GALLERY_IMAGE_PLACEHOLDER;
+                img.src = getOriginalPhotoSrc(photo);
                 img.dataset.loading = 'done';
                 img.classList.add('loaded');
             } else {
-                img.dataset.src = photo.thumbSrc || photo.src;
+                img.dataset.src = getOriginalPhotoSrc(photo);
                 img.dataset.loading = 'idle';
                 img.dataset.retryCount = '0';
                 img.src = GALLERY_IMAGE_PLACEHOLDER;

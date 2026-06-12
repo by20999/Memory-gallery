@@ -25,6 +25,8 @@ File system
 - `js/main.js` 负责初始化各业务模块。
 - `js/state.js` 保存运行时状态。
 - `js/api.js` 隔离网络请求。
+- `js/select.js` 在不替换原生 `select` 状态源的前提下，提供统一样式的轻量下拉菜单增强。
+- 昵称和头像属于浏览器本地个性化设置，由 `js/profile.js` 写入 `localStorage`，不进入后端 JSON 数据。
 - 其他 `js/*.js` 按功能拆分。
 
 前端没有 React/Vue 等框架，也没有打包工具。新增代码应优先保持这种简单模型。
@@ -50,7 +52,7 @@ File system
 ### 照片上传
 
 1. 前端 `js/upload.js` 选择或拖拽图片。
-2. 前端压缩图片并构造 `FormData`。
+2. 前端优先保留原图并构造 `FormData`；超过上传限制的超大图才会高质量降采样。
 3. `js/api.js` 通过 `POST /api/upload` 上传。
 4. `server/routes/photos.js` 使用 multer 保存到 `uploads/`。
 5. 后端计算图片内容 hash，跳过已存在的重复照片。

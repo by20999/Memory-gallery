@@ -8,6 +8,7 @@ import { initLightbox, openLightbox, closeLightbox } from './lightbox.js';
 import { initUpload } from './upload.js';
 import { initStory, loadStories } from './story.js';
 import { initSystemPanel } from './system.js';
+import { initEnhancedSelects } from './select.js';
 import { state } from './state.js';
 
 function getDayPhaseLabel() {
@@ -89,6 +90,7 @@ async function bootstrap() {
     initStory();
     initSystemPanel();
     initUpload({ onLoadPhotos: loadPhotos });
+    initEnhancedSelects();
     await Promise.all([loadPhotos(), loadStories()]);
     startSubtitleRotation();
 }

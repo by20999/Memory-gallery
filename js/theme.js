@@ -36,8 +36,12 @@ const THEME_PACKAGES = {
 };
 
 function updateThemeIcon(theme) {
-    dom.themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+    dom.themeIcon.innerHTML = theme === 'dark'
+        ? '<svg class="theme-tool-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 4v2.2M12 17.8V20M4 12h2.2M17.8 12H20M6.3 6.3l1.6 1.6M16.1 16.1l1.6 1.6M17.7 6.3l-1.6 1.6M7.9 16.1l-1.6 1.6"/><circle cx="12" cy="12" r="3.8"/></svg>'
+        : '<svg class="theme-tool-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M20 15.3A7.4 7.4 0 0 1 8.7 4 8.4 8.4 0 1 0 20 15.3z"/></svg>';
+    dom.themeToggleBtn.dataset.mode = theme;
     dom.themeToggleBtn.title = theme === 'dark' ? '切换到白天模式' : '切换到夜晚模式';
+    dom.themeToggleBtn.setAttribute('aria-label', dom.themeToggleBtn.title);
 }
 
 function getFestivalContext() {
@@ -45,11 +49,11 @@ function getFestivalContext() {
     const month = now.getMonth() + 1;
     const day = now.getDate();
 
-    if (month === 1 && day <= 7) return { name: '新年团聚', badge: '新年推荐', copy: '新的一年，把全家的第一份笑容继续收藏下来。', packageKey: 'cream' };
-    if (month === 2 && day >= 10 && day <= 18) return { name: '元宵团圆', badge: '元宵推荐', copy: '灯火亮起的时候，最适合把家人的热闹留在同一本相册里。', packageKey: 'cream' };
-    if (month >= 3 && month <= 5) return { name: '春日漫游', badge: '春日推荐', copy: '把野餐、散步和花开的日子，慢慢装订成春天的家庭回忆。', packageKey: 'cream' };
+    if (month === 1 && day <= 7) return { name: '新年团聚', badge: '新年推荐', copy: '新的一年，把第一份笑容继续收藏下来。', packageKey: 'cream' };
+    if (month === 2 && day >= 10 && day <= 18) return { name: '元宵团圆', badge: '元宵推荐', copy: '灯火亮起的时候，最适合把热闹留在同一本相册里。', packageKey: 'cream' };
+    if (month >= 3 && month <= 5) return { name: '春日漫游', badge: '春日推荐', copy: '把野餐、散步和花开的日子，慢慢装订成春天的回忆。', packageKey: 'cream' };
     if (month >= 6 && month <= 8) return { name: '夏日欢聚', badge: '夏日推荐', copy: '阳光、海风和西瓜的季节，最适合用清爽的色调收纳回忆。', packageKey: 'summer' };
-    if (month === 10 && day >= 1 && day <= 7) return { name: '假日出游', badge: '国庆推荐', copy: '假期的旅途和团聚，都值得在回家后继续被翻看很多次。', packageKey: 'film' };
+    if (month === 10 && day >= 1 && day <= 7) return { name: '假日出游', badge: '国庆推荐', copy: '假期的旅途和团聚，都值得在归来后继续被翻看很多次。', packageKey: 'film' };
     if (month >= 9 && month <= 11) return { name: '秋日故事', badge: '秋日推荐', copy: '收获和团聚的季节，用带一点胶片感的暖色更有故事味道。', packageKey: 'film' };
     return { name: '冬日收藏', badge: '冬日推荐', copy: '围坐在一起的时刻，总值得被留在一个温暖的角落里。', packageKey: 'film' };
 }
@@ -112,10 +116,12 @@ function applyThemePackage(packageKey, options = {}) {
 
 function refreshFestivalHeader() {
     const festival = getFestivalContext();
-    dom.festivalBadge.textContent = `${festival.badge} · ${THEME_PACKAGES[festival.packageKey].label}`;
-    dom.recommendThemeBtn.textContent = `一键切换到${THEME_PACKAGES[festival.packageKey].label}`;
+    const packageLabel = THEME_PACKAGES[festival.packageKey].label;
+    dom.festivalBadge.textContent = festival.badge;
+    dom.recommendThemeCopy.textContent = packageLabel;
+    dom.recommendThemeBtn.title = `切换到${packageLabel}`;
     dom.recommendThemeBtn.dataset.package = festival.packageKey;
-    dom.headerKicker.textContent = `${festival.name} · 把寻常日子装订成家的回忆册`;
+    dom.headerKicker.textContent = `${festival.name} · 把寻常日子装订成回忆册`;
     dom.headerDescription.textContent = festival.copy;
 }
 

@@ -1,11 +1,25 @@
 ﻿import { dom } from './dom.js';
 import { uploadPhotos } from './api.js';
-import { resizeImageFile, normalizeTags } from './utils.js';
+import { prepareHighFidelityUploadFile, normalizeTags } from './utils.js';
 import { showLocalUploadPreviews, clearLocalUploadPreviews, prependUploadedPhotos } from './gallery.js';
 import { showStatusNotice } from './feedback.js';
 
 const uploadButtonHtml = dom.uploadBtn.innerHTML;
 const defaultUploadHint = dom.uploadDropHint?.textContent || '\u652f\u6301\u62d6\u62fd\u4e0a\u4f20\uff0c\u4f1a\u81ea\u52a8\u6cbf\u7528\u5f53\u524d\u63cf\u8ff0\u3001\u6807\u7b7e\u548c\u5206\u7ec4';
+
+function normalizeEventDateInput(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const match = raw.match(/^(\d{4})\D+(\d{1,2})\D+(\d{1,2})$/);
+    if (!match) return '';
+    const [, year, month, day] = match;
+    const mm = month.padStart(2, '0');
+    const dd = day.padStart(2, '0');
+    const date = new Date(`${year}-${mm}-${dd}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return '';
+    if (date.getFullYear() !== Number(year) || date.getMonth() + 1 !== Number(month) || date.getDate() !== Number(day)) return '';
+    return `${year}-${mm}-${dd}`;
+}
 
 function setUploadHint(text, isActive = false) {
     if (!dom.uploadDropHint) return;
@@ -61,7 +75,7 @@ async function handleSelectedFiles(fileList, onLoadPhotos) {
     const rawTags = dom.tagsInput.value.trim();
     const tags = normalizeTags(rawTags);
     const groupName = dom.uploadGroupSelect.value.trim();
-    const eventDate = dom.eventDateInput?.value || '';
+    const eventDate = normalizeEventDateInput(dom.eventDateInput?.value);
     const eventName = dom.eventNameInput?.value.trim() || '';
     const previews = buildLocalUploadPreviews(files, caption, tags, groupName, eventDate, eventName);
 
@@ -81,10 +95,10 @@ async function handleSelectedFiles(fileList, onLoadPhotos) {
         formData.append('eventName', eventName);
 
         for (let index = 0; index < files.length; index += 1) {
-            dom.uploadProgressText.textContent = `\u538b\u7f29\u4e2d ${index + 1} / ${files.length}...`;
+            dom.uploadProgressText.textContent = `\u4fdd\u7559\u6e05\u6670\u5ea6\u4e2d ${index + 1} / ${files.length}...`;
             dom.uploadProgressBar.style.width = `${((index + 0.5) / files.length) * 50}%`;
-            const compressed = await resizeImageFile(files[index], { maxSize: 2560, quality: 0.92 });
-            formData.append('photos', compressed, files[index].name);
+            const prepared = await prepareHighFidelityUploadFile(files[index]);
+            formData.append('photos', prepared, prepared.name || files[index].name);
         }
 
         dom.uploadProgressText.textContent = '\u4e0a\u4f20\u4e2d...';

@@ -30,18 +30,18 @@ story-data.json
 
 ```json
 {
-  "family-trip.jpg": {
+  "memory-trip.jpg": {
     "likes": 0,
     "comments": [],
     "reactions": {},
     "caption": "海边合照",
     "favorited": false,
-    "tags": ["旅行", "家庭"],
+    "tags": ["旅行", "纪念"],
     "order": 0,
     "groupName": "暑假",
-    "thumbnail": "family-trip.jpg",
+    "thumbnail": "memory-trip.jpg",
     "eventDate": "2026-06-09",
-    "eventName": "家庭旅行",
+    "eventName": "海边旅行",
     "contentHash": "sha256...",
     "fileSize": 123456
   }
@@ -106,7 +106,7 @@ story-data.json
       "items": [
         {
           "id": "story-item-xxx",
-          "photoId": "family-trip.jpg",
+          "photoId": "memory-trip.jpg",
           "position": 0,
           "curveOffset": 0.18,
           "note": "",
@@ -141,3 +141,12 @@ story-data.json
 - 分组列表由照片元数据反推，空分组不会长期保留。
 - 故事条目引用不存在的照片时，接口响应会过滤掉该条目对应的照片展示数据。
 - 修改数据模型必须先更新 normalize 函数，再更新文档。
+
+## 浏览器本地个性化数据
+
+昵称和头像属于当前浏览器的轻量个性化设置：
+
+- `album_nickname`：昵称，保存在 `localStorage`。
+- `album_avatar_image`：头像图片，前端裁剪压缩后的 data URL，保存在 `localStorage`。
+
+这些字段不写入 `photo-data.json`、`group-data.json` 或 `story-data.json`，也不会上传服务器。清理浏览器数据、换设备或换浏览器后需要重新设置。
