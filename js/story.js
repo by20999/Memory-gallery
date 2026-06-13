@@ -10,24 +10,120 @@ import {
     updateStoryRequest
 } from './api.js';
 import { showStatusNotice } from './feedback.js';
+import { refreshEnhancedSelects } from './select.js';
 import { escapeHtml, formatUploadDate, formatUploadMonth } from './utils.js';
 
 const STORY_TIMELINE = {
-    step: 240,
-    height: 420,
-    padding: 150,
-    midY: 210,
-    waveAmplitude: 68,
-    offsetAmplitude: 42,
+    step: 280,
+    height: 340,
+    padding: 116,
+    midY: 128,
+    waveAmplitude: 18,
+    offsetAmplitude: 18,
     maxOffset: 1,
-    minY: 92,
-    maxY: 328,
+    minY: 98,
+    maxY: 188,
     nudgeStep: 0.14
+};
+
+const STORY_BACKGROUND_STORAGE_PREFIX = 'album_story_background_';
+const SHOWCASE_TIMELINE = {
+    step: 330,
+    height: 680,
+    padding: 230,
+    midY: 330,
+    waveAmplitude: 60,
+    autoplayTail: 820
 };
 
 let autosaveTimer = null;
 let viewportDragState = null;
 let nodeDragState = null;
+let showcaseDragState = null;
+let showcasePanY = 0;
+let showcaseAutoplayFrame = 0;
+let showcaseAutoplayLastTime = 0;
+let storyChoiceState = null;
+
+const SHOWCASE_PAN_Y_LIMIT = 220;
+const SHOWCASE_AUTOPLAY_SPEED = 56;
+
+function clampShowcasePanY(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0;
+    return Math.max(-SHOWCASE_PAN_Y_LIMIT, Math.min(SHOWCASE_PAN_Y_LIMIT, numeric));
+}
+
+function applyShowcasePanY(value) {
+    showcasePanY = clampShowcasePanY(value);
+    if (dom.storyShowcaseTrack) {
+        dom.storyShowcaseTrack.style.setProperty('--showcase-pan-y', `${showcasePanY}px`);
+    }
+}
+
+function isShowcaseAutoplaying() {
+    return Boolean(showcaseAutoplayFrame);
+}
+
+function updateShowcaseAutoplayButton() {
+    if (!dom.storyShowcaseAutoplayBtn) return;
+    const playing = isShowcaseAutoplaying();
+    dom.storyShowcaseAutoplayBtn.textContent = playing ? '停止播放' : '自动播放';
+    dom.storyShowcaseAutoplayBtn.setAttribute('aria-pressed', playing ? 'true' : 'false');
+}
+
+function stopShowcaseAutoplay() {
+    if (showcaseAutoplayFrame) {
+        window.cancelAnimationFrame(showcaseAutoplayFrame);
+        showcaseAutoplayFrame = 0;
+    }
+    showcaseAutoplayLastTime = 0;
+    updateShowcaseAutoplayButton();
+}
+
+function stepShowcaseAutoplay(timestamp) {
+    if (!dom.storyShowcaseViewport || !dom.storyShowcase || dom.storyShowcase.hidden) {
+        stopShowcaseAutoplay();
+        return;
+    }
+
+    if (!showcaseAutoplayLastTime) showcaseAutoplayLastTime = timestamp;
+    const elapsed = Math.min(80, timestamp - showcaseAutoplayLastTime);
+    showcaseAutoplayLastTime = timestamp;
+
+    const viewport = dom.storyShowcaseViewport;
+    const maxScrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+    if (viewport.scrollLeft >= maxScrollLeft - 1) {
+        stopShowcaseAutoplay();
+        return;
+    }
+
+    viewport.scrollLeft = Math.min(maxScrollLeft, viewport.scrollLeft + (SHOWCASE_AUTOPLAY_SPEED * elapsed) / 1000);
+    showcaseAutoplayFrame = window.requestAnimationFrame(stepShowcaseAutoplay);
+}
+
+function startShowcaseAutoplay() {
+    if (!dom.storyShowcaseViewport) return;
+    if (isShowcaseAutoplaying()) return;
+
+    const viewport = dom.storyShowcaseViewport;
+    const maxScrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+    if (viewport.scrollLeft >= maxScrollLeft - 1) {
+        viewport.scrollLeft = 0;
+    }
+
+    showcaseAutoplayLastTime = 0;
+    showcaseAutoplayFrame = window.requestAnimationFrame(stepShowcaseAutoplay);
+    updateShowcaseAutoplayButton();
+}
+
+function toggleShowcaseAutoplay() {
+    if (isShowcaseAutoplaying()) {
+        stopShowcaseAutoplay();
+    } else {
+        startShowcaseAutoplay();
+    }
+}
 
 function clampStoryOffset(value) {
     const numeric = Number(value);
@@ -92,8 +188,26 @@ function ensureActiveStory() {
     }
 }
 
+function getStoryTime(story, key) {
+    const time = new Date(story?.[key] || story?.createdAt || story?.updatedAt || 0).getTime();
+    return Number.isNaN(time) ? 0 : time;
+}
+
+function sortStoriesByCreatedAt(stories) {
+    return [...(Array.isArray(stories) ? stories : [])].sort((a, b) => (
+        getStoryTime(a, 'createdAt') - getStoryTime(b, 'createdAt')
+        || getStoryTime(a, 'updatedAt') - getStoryTime(b, 'updatedAt')
+        || String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hans-CN')
+    ));
+}
+
+function normalizeStoryOrder(stories) {
+    setStories(sortStoriesByCreatedAt(stories));
+}
+
 function updateActiveStory(story) {
     replaceStoryInStore(story);
+    normalizeStoryOrder(state.stories);
     if (!state.activeStoryId) {
         state.activeStoryId = story.id;
     }
@@ -106,14 +220,13 @@ function setEditorStatus(text) {
     }
 }
 
-function getStoryChoicePrompt() {
-    return state.stories
-        .map((story, index) => `${index + 1}. ${story.name}`)
-        .join('\n');
+function getTimelineWidth(itemCount, viewportWidth = dom.storyFlowViewport?.clientWidth || 960) {
+    return Math.max(viewportWidth, STORY_TIMELINE.padding * 2 + Math.max(itemCount - 1, 0) * STORY_TIMELINE.step + 136);
 }
 
-function getTimelineWidth(itemCount, viewportWidth = dom.storyFlowViewport?.clientWidth || 960) {
-    return Math.max(viewportWidth - 32, STORY_TIMELINE.padding * 2 + Math.max(itemCount - 1, 0) * STORY_TIMELINE.step + 240);
+function getPreviewBackgroundOpacity(story) {
+    const savedOpacity = getStoryBackgroundOpacity(story);
+    return Math.min(0.42, Math.max(0.12, savedOpacity || 0.18));
 }
 
 function getBasePointForIndex(index) {
@@ -169,7 +282,7 @@ function buildStoryPath(points) {
 }
 
 function buildTimelineMetaText(itemCount) {
-    return `共 ${itemCount} 张图片，拖动节点可重排顺序，也可以用上移/下移做更细的流线微调。`;
+    return `共 ${itemCount} 张图片，按加入顺序铺开；需要微调时可拖动节点。`;
 }
 
 function getStoryDisplayPhotoSrc(photo) {
@@ -180,10 +293,115 @@ function getStoryPreviewPhotoSrc(photo) {
     return photo?.thumbSrc || photo?.src || '';
 }
 
+function getPhotoDescription(photo, fallback = '这张图片还没有写描述，可以在主相册里继续补充。') {
+    const caption = String(photo?.caption || '').trim();
+    return caption || fallback;
+}
+
+function getStoryItemDescription(item, fallback) {
+    const note = String(item?.note || '').trim();
+    return getPhotoDescription(item?.photo || {}, note || fallback);
+}
+
+function getStoryPhotoById(photoId) {
+    const id = String(photoId || '').trim();
+    if (!id) return null;
+    return state.photos.find((photo) => photo.id === id) || null;
+}
+
+function getPhotoOptionLabel(photo, index) {
+    const description = getPhotoDescription(photo, '');
+    const date = formatUploadDate(photo?.uploadTime);
+    if (description && date) return `${description} · ${date}`;
+    if (description) return description;
+    if (date) return `未写描述的照片 · ${date}`;
+    return `未写描述的照片 ${index + 1}`;
+}
+
+function getStoryLocalBackgroundKey(storyId) {
+    return `${STORY_BACKGROUND_STORAGE_PREFIX}${storyId}`;
+}
+
+function readLocalStoryBackground(storyId) {
+    try {
+        return window.localStorage.getItem(getStoryLocalBackgroundKey(storyId)) || '';
+    } catch {
+        return '';
+    }
+}
+
+function writeLocalStoryBackground(storyId, value) {
+    try {
+        const key = getStoryLocalBackgroundKey(storyId);
+        if (value) {
+            window.localStorage.setItem(key, value);
+        } else {
+            window.localStorage.removeItem(key);
+        }
+    } catch (error) {
+        console.error('保存本地故事背景失败:', error);
+        showStatusNotice('本地背景保存失败，可能是图片过大。', { tone: 'error' });
+    }
+}
+
+function clampBackgroundOpacity(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0.18;
+    return Math.max(0, Math.min(0.55, Math.round(numeric * 100) / 100));
+}
+
+function getStoryBackgroundOpacity(story) {
+    return clampBackgroundOpacity(story?.backgroundOpacity);
+}
+
+function getPhotoBackgroundSrc(photo) {
+    return photo ? getStoryDisplayPhotoSrc(photo) : '';
+}
+
+function getStoryBackgroundSrc(story) {
+    if (!story) return '';
+    const localBackground = readLocalStoryBackground(story.id);
+    if (localBackground) return localBackground;
+    const backgroundPhoto = story.backgroundPhoto || getStoryPhotoById(story.backgroundPhotoId);
+    return getPhotoBackgroundSrc(backgroundPhoto);
+}
+
+function applyStoryBackground(story) {
+    const src = getStoryBackgroundSrc(story);
+    const opacity = getPreviewBackgroundOpacity(story);
+    const targets = [
+        dom.storyStage,
+        dom.storyFlowViewport?.closest('.story-timeline-panel')
+    ].filter(Boolean);
+    targets.forEach((target) => {
+        target.style.setProperty('--story-bg-image', src ? `url("${src.replace(/"/g, '\\"')}")` : 'none');
+        target.style.setProperty('--story-bg-opacity', String(opacity));
+        target.classList.toggle('has-story-background', Boolean(src));
+    });
+}
+
+function updateStoryBackgroundControls(story) {
+    if (!story) return;
+    if (dom.storyBackgroundSelect) {
+        const currentValue = story.backgroundPhotoId || '';
+        const options = ['<option value="">不使用相册背景</option>']
+            .concat(state.photos.map((photo, index) => {
+                const selected = photo.id === currentValue ? ' selected' : '';
+                return `<option value="${escapeHtml(photo.id)}"${selected}>${escapeHtml(getPhotoOptionLabel(photo, index))}</option>`;
+            }));
+        dom.storyBackgroundSelect.innerHTML = options.join('');
+        dom.storyBackgroundSelect.value = currentValue;
+    }
+    const opacityPercent = Math.round(getStoryBackgroundOpacity(story) * 100);
+    if (dom.storyBackgroundOpacityInput) dom.storyBackgroundOpacityInput.value = String(opacityPercent);
+    if (dom.storyBackgroundOpacityValue) dom.storyBackgroundOpacityValue.textContent = `${opacityPercent}%`;
+    refreshEnhancedSelects();
+}
+
 function buildDragMetaText(targetIndex, curveOffset) {
     const direction = curveOffset > 0 ? '向下' : curveOffset < 0 ? '向上' : '归中';
     const intensity = Math.abs(Math.round(curveOffset * 100));
-    return `拖动中：松开后会排到第 ${targetIndex + 1} 张，节点${direction}${intensity}% 。`;
+    return `松开后排到第 ${targetIndex + 1} 张，位置${direction}${intensity}% 。`;
 }
 
 function buildStoryCard(story) {
@@ -197,10 +415,23 @@ function buildStoryCard(story) {
             <div class="story-list-cover">${cover}</div>
             <div class="story-list-meta">
                 <strong>${escapeHtml(story.name)}</strong>
-                <span>${story.itemCount || story.items?.length || 0} 张图片</span>
-                <em>${escapeHtml(formatUploadMonth(story.updatedAt) || '刚刚整理')}</em>
+                <span>${story.itemCount || story.items?.length || 0} 张图片 · ${escapeHtml(formatUploadMonth(story.createdAt) || '刚刚创建')}</span>
             </div>
         </button>
+    `;
+}
+
+function buildStoryCompactSelector(activeStory) {
+    if (!activeStory) return '';
+    if (state.stories.length <= 1) return '';
+    const options = state.stories.map((story) => (
+        `<option value="${escapeHtml(story.id)}"${story.id === activeStory.id ? ' selected' : ''}>${escapeHtml(story.name)}</option>`
+    )).join('');
+    return `
+        <label class="story-compact-select">
+            <span>切换故事</span>
+            <select id="storyCompactSelect">${options}</select>
+        </label>
     `;
 }
 
@@ -210,28 +441,32 @@ function buildStoryNode(item, point, index) {
     const sourceLabel = item.sourceType === 'group' && item.sourceGroupName
         ? `来自分组 · ${escapeHtml(item.sourceGroupName)}`
         : '来自主相册';
+    const description = getStoryItemDescription(item, '');
+    const shortDescription = description.length > 26 ? `${description.slice(0, 26)}...` : description;
+    const imageAlt = description || `故事片段 ${index + 1}`;
+    const descriptionMarkup = description
+        ? `
+                    <h4>${escapeHtml(shortDescription)}</h4>
+                    <p>${escapeHtml(description)}</p>`
+        : '';
 
     return `
         <article class="story-node" data-story-item-id="${escapeHtml(item.id)}" data-story-item-index="${index}" style="left:${point.x}px; top:${point.y}px; animation-delay:${(index * 0.06).toFixed(2)}s;">
-            <div class="story-node-dot"></div>
+            <div class="story-node-controls">
+                <span class="story-node-order">${String(index + 1).padStart(2, '0')}</span>
+                <button class="story-node-handle" type="button" data-story-drag-handle="${escapeHtml(item.id)}">拖动</button>
+                <button class="story-adjust-btn" type="button" data-story-adjust="up" data-story-adjust-item="${escapeHtml(item.id)}">上移</button>
+                <button class="story-adjust-btn" type="button" data-story-adjust="down" data-story-adjust-item="${escapeHtml(item.id)}">下移</button>
+                <button class="story-adjust-btn subtle" type="button" data-story-adjust="reset" data-story-adjust-item="${escapeHtml(item.id)}">归位</button>
+            </div>
             <div class="story-node-card">
                 <button class="story-node-remove" type="button" data-story-remove-item="${escapeHtml(item.id)}" aria-label="移出故事">×</button>
                 <div class="story-node-media">
-                    <img src="${escapeHtml(getStoryDisplayPhotoSrc(photo))}" alt="${escapeHtml(photo.name || '故事图片')}" loading="lazy">
+                    <img src="${escapeHtml(getStoryDisplayPhotoSrc(photo))}" alt="${escapeHtml(imageAlt)}" loading="lazy">
                 </div>
                 <div class="story-node-body">
-                    <div class="story-node-toolbar">
-                        <span class="story-node-order">第 ${index + 1} 幕</span>
-                        <button class="story-node-handle" type="button" data-story-drag-handle="${escapeHtml(item.id)}">拖动重排</button>
-                        <div class="story-node-adjustments" role="group" aria-label="节点位置微调">
-                            <button class="story-adjust-btn" type="button" data-story-adjust="up" data-story-adjust-item="${escapeHtml(item.id)}">上移</button>
-                            <button class="story-adjust-btn" type="button" data-story-adjust="down" data-story-adjust-item="${escapeHtml(item.id)}">下移</button>
-                            <button class="story-adjust-btn subtle" type="button" data-story-adjust="reset" data-story-adjust-item="${escapeHtml(item.id)}">归位</button>
-                        </div>
-                    </div>
                     <div class="story-node-date">${escapeHtml(formatUploadDate(photo.uploadTime) || '未记录日期')}</div>
-                    <h4>${escapeHtml(photo.name || '未命名图片')}</h4>
-                    <p>${escapeHtml(photo.caption || '这张图片还没有写描述，可以在主相册里继续补充。')}</p>
+                    ${descriptionMarkup}
                     <div class="story-node-foot">
                         <span class="story-node-source">${sourceLabel}</span>
                         ${photo.groupName ? `<span class="story-node-group">${escapeHtml(photo.groupName)}</span>` : ''}
@@ -274,8 +509,8 @@ function renderStoryTimeline(story) {
         dom.storyFlowSurface.style.width = '100%';
         dom.storyFlowSurface.innerHTML = `
             <div class="story-flow-empty-card">
-                <strong>故事还是空白页</strong>
-                <p>去主相册里点“加入故事”，把想讲的图片慢慢接到这条时间流线上。</p>
+                <strong>这本故事还没有图片</strong>
+                <p>回到主相册，选择照片上的“加入故事”，它会按加入顺序出现在这里。</p>
             </div>
         `;
         return;
@@ -291,6 +526,7 @@ function renderStoryTimeline(story) {
     dom.storyFlowSurface.className = 'story-flow-surface';
     dom.storyFlowSurface.style.width = `${width}px`;
     dom.storyFlowSurface.innerHTML = `
+        <div class="story-flow-ambient"></div>
         <svg class="story-flow-svg" viewBox="0 0 ${width} ${STORY_TIMELINE.height}" preserveAspectRatio="none" aria-hidden="true">
             <defs>
                 <linearGradient id="storyFlowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -302,7 +538,6 @@ function renderStoryTimeline(story) {
             <path class="story-flow-shadow" d="${path}"></path>
             <path class="story-flow-line" d="${path}"></path>
         </svg>
-        <div class="story-flow-ambient"></div>
         <div class="story-flow-drop-guide" hidden><span></span></div>
         ${items.map((item, index) => buildStoryNode(item, points[index], index)).join('')}
     `;
@@ -318,7 +553,7 @@ function renderStoryView() {
 
     if (dom.storyList) {
         dom.storyList.innerHTML = hasStories
-            ? state.stories.map((story) => buildStoryCard(story)).join('')
+            ? `${buildStoryCard(activeStory || state.stories[0])}${buildStoryCompactSelector(activeStory || state.stories[0])}`
             : '<div class="story-list-placeholder">还没有故事视图，先创建第一本回忆录吧。</div>';
 
         dom.storyList.querySelectorAll('[data-story-id]').forEach((button) => {
@@ -326,6 +561,10 @@ function renderStoryView() {
                 state.activeStoryId = button.dataset.storyId || '';
                 renderStoryView();
             });
+        });
+        dom.storyList.querySelector('#storyCompactSelect')?.addEventListener('change', (event) => {
+            state.activeStoryId = event.currentTarget.value || '';
+            renderStoryView();
         });
     }
 
@@ -344,13 +583,15 @@ function renderStoryView() {
     if (dom.storySummary) {
         const count = activeStory.itemCount || activeStory.items?.length || 0;
         dom.storySummary.textContent = count === 0
-            ? '这本故事还没放进图片，先从主相册挑一些关键时刻过来吧。'
-            : `现在收进了 ${count} 张图片。每一张都保留原有的描述、标签和分组信息，可以继续在主相册里完善。`;
+            ? '这本故事已经创建好。回到主相册，把想讲的照片加入进来。'
+            : `现在收进了 ${count} 张图片，按加入顺序组成这条故事线。`;
     }
 
     if (dom.storyContentInput && dom.storyContentInput.value !== activeStory.content) {
         dom.storyContentInput.value = activeStory.content || '';
     }
+    applyStoryBackground(activeStory);
+    updateStoryBackgroundControls(activeStory);
     setEditorStatus('故事文案会自动保存');
     renderStoryTimeline(activeStory);
 }
@@ -383,6 +624,28 @@ async function persistStoryContent(storyId, content) {
         console.error('保存故事文案失败:', error);
         setEditorStatus('保存失败，请稍后重试');
         showStatusNotice(error.message || '保存故事文案失败', { tone: 'error' });
+    }
+}
+
+async function persistStoryAppearance(storyId, patch) {
+    const story = getActiveStory();
+    if (!story || story.id !== storyId) return;
+    const nextStory = { ...story, ...patch, updatedAt: new Date().toISOString() };
+    updateActiveStory(nextStory);
+    renderStoryView();
+
+    try {
+        const data = await updateStoryRequest(storyId, patch);
+        updateActiveStory(data.story);
+        if (state.activeStoryId === storyId) {
+            renderStoryView();
+        }
+        showStatusNotice('故事外观已保存', { tone: 'success', duration: 1600 });
+    } catch (error) {
+        console.error('保存故事外观失败:', error);
+        updateActiveStory(story);
+        renderStoryView();
+        showStatusNotice(error.message || '保存故事外观失败，请稍后重试', { tone: 'error' });
     }
 }
 
@@ -419,6 +682,46 @@ async function createStoryFlow(name = '') {
     return nextStory;
 }
 
+function buildStoryChoiceCard(story) {
+    const cover = story.coverPhoto
+        ? `<img src="${escapeHtml(getStoryPreviewPhotoSrc(story.coverPhoto))}" alt="${escapeHtml(story.name)}">`
+        : '<span>忆</span>';
+    const count = story.itemCount || story.items?.length || 0;
+    return `
+        <button class="story-choice-item" type="button" data-story-choice-id="${escapeHtml(story.id)}">
+            <span class="story-choice-cover">${cover}</span>
+            <span class="story-choice-meta">
+                <strong>${escapeHtml(story.name)}</strong>
+                <em>${count} 张图片 · ${escapeHtml(formatUploadMonth(story.createdAt) || '刚刚创建')}</em>
+            </span>
+        </button>
+    `;
+}
+
+function closeStoryChoiceModal(result = null) {
+    if (!storyChoiceState) return;
+    const { resolve } = storyChoiceState;
+    storyChoiceState = null;
+    if (dom.storyChoiceModal) dom.storyChoiceModal.hidden = true;
+    document.body.classList.remove('story-choice-open');
+    resolve(result);
+}
+
+function openStoryChoiceModal(targetLabel = '加入故事') {
+    if (!dom.storyChoiceModal || !dom.storyChoiceList) return Promise.resolve(null);
+    if (storyChoiceState) closeStoryChoiceModal(null);
+
+    dom.storyChoiceTitle.textContent = `${targetLabel}到哪一本故事？`;
+    if (dom.storyChoiceKicker) dom.storyChoiceKicker.textContent = state.stories.length > 1 ? `共 ${state.stories.length} 本故事` : '选择故事';
+    dom.storyChoiceList.innerHTML = state.stories.map((story) => buildStoryChoiceCard(story)).join('');
+    dom.storyChoiceModal.hidden = false;
+    document.body.classList.add('story-choice-open');
+
+    return new Promise((resolve) => {
+        storyChoiceState = { resolve };
+    });
+}
+
 async function chooseStory(targetLabel = '加入故事') {
     if (state.stories.length === 0) {
         const name = window.prompt('还没有故事视图。先创建一个吧，给这次故事起个名字：', '新的图片故事');
@@ -427,20 +730,11 @@ async function chooseStory(targetLabel = '加入故事') {
     }
 
     if (state.stories.length === 1) {
+        showStatusNotice(`将加入“${state.stories[0].name}”`, { tone: 'info', duration: 1200 });
         return state.stories[0];
     }
 
-    const answer = window.prompt(`请选择要${targetLabel}到哪个故事。\n${getStoryChoicePrompt()}\n\n输入序号或故事名称：`, state.stories[0]?.name || '');
-    if (answer === null) return null;
-    const raw = answer.trim();
-    if (!raw) return null;
-
-    const byIndex = Number(raw);
-    if (Number.isInteger(byIndex) && byIndex >= 1 && byIndex <= state.stories.length) {
-        return state.stories[byIndex - 1];
-    }
-
-    return state.stories.find((story) => story.name === raw) || null;
+    return openStoryChoiceModal(targetLabel);
 }
 
 function buildStoryAfterItemMove(story, itemId, targetIndex, curveOffset) {
@@ -477,6 +771,148 @@ function buildStoryAfterItemAdjust(story, itemId, direction) {
     return withStoryItems(story, nextItems);
 }
 
+function getShowcaseWidth(itemCount, viewportWidth = dom.storyShowcaseViewport?.clientWidth || window.innerWidth || 1280) {
+    const timelineWidth = SHOWCASE_TIMELINE.padding * 2 + Math.max(itemCount - 1, 0) * SHOWCASE_TIMELINE.step;
+    return Math.max(viewportWidth + SHOWCASE_TIMELINE.autoplayTail, timelineWidth + SHOWCASE_TIMELINE.autoplayTail);
+}
+
+function getShowcasePoint(index) {
+    return {
+        x: SHOWCASE_TIMELINE.padding + index * SHOWCASE_TIMELINE.step,
+        y: SHOWCASE_TIMELINE.midY
+            + Math.sin(index * 1.08) * SHOWCASE_TIMELINE.waveAmplitude
+            + Math.cos(index * 0.58) * 22
+    };
+}
+
+function buildShowcasePath(itemCount) {
+    const points = Array.from({ length: itemCount }, (_, index) => getShowcasePoint(index));
+    return buildStoryPath(points);
+}
+
+function buildShowcaseFrame(item, index) {
+    const photo = item.photo || {};
+    const point = getShowcasePoint(index);
+    const lane = [
+        { className: 'lane-high caption-above', captionAbove: true, offset: -140, tilt: -1.8 },
+        { className: 'lane-low caption-below', captionAbove: false, offset: 155, tilt: 1.4 },
+        { className: 'lane-soft-high caption-above', captionAbove: true, offset: -138, tilt: 0.8 },
+        { className: 'lane-soft-low caption-below', captionAbove: false, offset: 155, tilt: -1.2 },
+        { className: 'lane-high caption-above', captionAbove: true, offset: -132, tilt: 1.7 },
+        { className: 'lane-soft-low caption-below', captionAbove: false, offset: 150, tilt: -0.7 }
+    ][index % 6];
+    const placement = lane.className;
+    const tilt = lane.tilt;
+    const itemY = point.y + lane.offset;
+    const caption = String(photo.caption || item.note || '').trim();
+    const imageAlt = caption || formatUploadDate(photo.uploadTime) || `故事片段 ${index + 1}`;
+    const captionMarkup = caption
+        ? `<div class="story-showcase-caption"><span>${escapeHtml(caption)}</span></div>`
+        : '';
+    const captionBefore = lane.captionAbove ? captionMarkup : '';
+    const captionAfter = lane.captionAbove ? '' : captionMarkup;
+
+    return `
+        <article class="story-showcase-item ${placement}" style="left:${point.x}px; top:${itemY}px; --tilt:${tilt}deg;">
+            <div class="story-showcase-time">${escapeHtml(formatUploadDate(photo.uploadTime) || '未记录时间')}</div>
+            ${captionBefore}
+            <div class="story-showcase-frame">
+                <img src="${escapeHtml(getStoryDisplayPhotoSrc(photo))}" alt="${escapeHtml(imageAlt)}" loading="lazy">
+            </div>
+            ${captionAfter}
+        </article>
+    `;
+}
+
+function renderShowcase(story) {
+    if (!dom.storyShowcase || !dom.storyShowcaseTrack || !dom.storyShowcaseViewport) return;
+    const items = Array.isArray(story?.items) ? story.items : [];
+    const width = getShowcaseWidth(items.length);
+    const path = buildShowcasePath(items.length);
+    const bgSrc = getStoryBackgroundSrc(story);
+    const bgOpacity = Math.min(0.42, Math.max(0.1, getStoryBackgroundOpacity(story) || 0.18));
+
+    if (dom.storyShowcaseTitle) dom.storyShowcaseTitle.textContent = story?.name || '图片故事';
+    if (dom.storyShowcaseMeta) {
+        dom.storyShowcaseMeta.textContent = items.length
+            ? `${items.length} 个回忆片段 · 拖动查看更早或更晚`
+            : '这本故事还没有图片';
+    }
+    if (dom.storyShowcaseNarration) {
+        const content = String(story?.content || '').trim();
+        dom.storyShowcaseNarration.textContent = content || '把鼠标按在时间流线上轻轻拖动，让照片沿着回忆的方向慢慢出现。';
+    }
+    if (dom.storyShowcaseBg) {
+        dom.storyShowcaseBg.style.backgroundImage = bgSrc ? `url("${bgSrc.replace(/"/g, '\\"')}")` : '';
+        dom.storyShowcaseBg.style.opacity = String(bgSrc ? bgOpacity : 0);
+    }
+
+    dom.storyShowcaseTrack.style.width = `${width}px`;
+    dom.storyShowcaseTrack.style.setProperty('--showcase-pan-y', `${showcasePanY}px`);
+    dom.storyShowcaseTrack.innerHTML = items.length
+        ? `
+            <div class="story-showcase-stars" aria-hidden="true"></div>
+            <div class="story-showcase-particles" aria-hidden="true">
+                <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+            <svg class="story-showcase-line" viewBox="0 0 ${width} ${SHOWCASE_TIMELINE.height}" preserveAspectRatio="none" aria-hidden="true">
+                <defs>
+                    <linearGradient id="storyShowcaseGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#ffe9ba"></stop>
+                        <stop offset="42%" stop-color="#ffffff"></stop>
+                        <stop offset="100%" stop-color="#ffb0a0"></stop>
+                    </linearGradient>
+                </defs>
+                <path class="story-showcase-line-glow" d="${path}"></path>
+                <path class="story-showcase-line-core" d="${path}"></path>
+            </svg>
+            ${items.map((item, index) => buildShowcaseFrame(item, index)).join('')}
+        `
+        : `
+            <div class="story-showcase-empty">
+                <strong>这本故事还在等第一张照片</strong>
+                <span>回到相册，把想讲述的图片加入故事后再打开全屏展示。</span>
+            </div>
+        `;
+}
+
+async function openStoryShowcase() {
+    const story = getActiveStory();
+    if (!story || !dom.storyShowcase) return;
+    renderShowcase(story);
+    dom.storyShowcase.hidden = false;
+    document.body.classList.add('story-showcase-open');
+    stopShowcaseAutoplay();
+    window.setTimeout(() => {
+        if (dom.storyShowcaseViewport) dom.storyShowcaseViewport.scrollLeft = 0;
+        applyShowcasePanY(0);
+    }, 0);
+    try {
+        if (dom.storyShowcase.requestFullscreen && !document.fullscreenElement) {
+            await dom.storyShowcase.requestFullscreen();
+        }
+    } catch {
+        // Fixed overlay remains available when the browser blocks fullscreen.
+    }
+}
+
+async function closeStoryShowcase() {
+    if (!dom.storyShowcase) return;
+    dom.storyShowcase.hidden = true;
+    document.body.classList.remove('story-showcase-open');
+    stopShowcaseAutoplay();
+    if (dom.storyShowcaseMenu) dom.storyShowcaseMenu.hidden = true;
+    if (dom.storyShowcaseMenuBtn) dom.storyShowcaseMenuBtn.setAttribute('aria-expanded', 'false');
+    if (document.fullscreenElement === dom.storyShowcase) {
+        try {
+            await document.exitFullscreen();
+        } catch {
+            // Ignore browser fullscreen exit errors; the overlay is already closed.
+        }
+    }
+}
+
 function getActiveStoryItem(itemId) {
     const story = getActiveStory();
     if (!story) return { story: null, item: null, index: -1 };
@@ -499,6 +935,7 @@ async function handleStoryAdjust(itemId, direction) {
     updateActiveStory(nextStory);
     renderStoryView();
     await persistStoryLayout(nextStory, previousStory);
+    showStatusNotice('故事节点位置已更新', { tone: 'success', duration: 1400 });
 }
 
 function cleanupNodeDrag() {
@@ -507,6 +944,7 @@ function cleanupNodeDrag() {
     window.removeEventListener('pointercancel', handleNodeDragCancel);
     document.body.classList.remove('story-node-dragging');
     dom.storyFlowSurface?.classList.remove('is-editing-layout');
+    nodeDragState?.handle?.classList.remove('is-dragging');
     hideDragGuide();
     nodeDragState = null;
 }
@@ -593,11 +1031,20 @@ function startNodeDrag(event, handle) {
         startPoint: points[index],
         previewPoint: points[index],
         startClientX: event.clientX,
-        startClientY: event.clientY
+        startClientY: event.clientY,
+        handle
     };
 
     document.body.classList.add('story-node-dragging');
     dom.storyFlowSurface?.classList.add('is-editing-layout');
+    handle.classList.add('is-dragging');
+    if (handle.setPointerCapture) {
+        try {
+            handle.setPointerCapture(event.pointerId);
+        } catch {
+            // Some browsers may reject capture if the pointer was already released.
+        }
+    }
     window.addEventListener('pointermove', handleNodeDragMove, { passive: false });
     window.addEventListener('pointerup', handleNodeDragEnd);
     window.addEventListener('pointercancel', handleNodeDragCancel);
@@ -657,23 +1104,38 @@ async function handleDeleteStory() {
 function bindViewportDragging() {
     if (!dom.storyFlowViewport) return;
 
-    dom.storyFlowViewport.addEventListener('pointerdown', (event) => {
-        const interactive = event.target.closest('button, textarea, input');
-        if (interactive || nodeDragState) return;
+    const shouldIgnoreViewportDrag = (event) => (
+        nodeDragState
+        || event.target.closest('button, textarea, input, select, [contenteditable="true"]')
+    );
+
+    const startViewportDrag = (event, pointerId = null) => {
+        event.preventDefault();
         viewportDragState = {
-            pointerId: event.pointerId,
+            pointerId,
             startX: event.clientX,
             startScrollLeft: dom.storyFlowViewport.scrollLeft
         };
         dom.storyFlowViewport.classList.add('dragging');
+    };
+
+    const moveViewportDrag = (event) => {
+        event.preventDefault();
+        const deltaX = event.clientX - viewportDragState.startX;
+        dom.storyFlowViewport.scrollLeft = viewportDragState.startScrollLeft - deltaX;
+    };
+
+    dom.storyFlowViewport.addEventListener('pointerdown', (event) => {
+        if (event.pointerType === 'mouse') return;
+        if (shouldIgnoreViewportDrag(event)) return;
+        startViewportDrag(event, event.pointerId);
         dom.storyFlowViewport.setPointerCapture(event.pointerId);
     });
 
     dom.storyFlowViewport.addEventListener('pointermove', (event) => {
         if (!viewportDragState || viewportDragState.pointerId !== event.pointerId) return;
-        const deltaX = event.clientX - viewportDragState.startX;
-        dom.storyFlowViewport.scrollLeft = viewportDragState.startScrollLeft - deltaX;
-    });
+        moveViewportDrag(event);
+    }, { passive: false });
 
     const finishDrag = (event) => {
         if (!viewportDragState || viewportDragState.pointerId !== event.pointerId) return;
@@ -690,6 +1152,98 @@ function bindViewportDragging() {
         dom.storyFlowViewport.classList.remove('dragging');
         viewportDragState = null;
     });
+
+    dom.storyFlowViewport.addEventListener('mousedown', (event) => {
+        if (event.button !== 0 || shouldIgnoreViewportDrag(event)) return;
+        startViewportDrag(event);
+        window.addEventListener('mousemove', handleMouseViewportDrag, { passive: false });
+        window.addEventListener('mouseup', finishMouseViewportDrag);
+    });
+
+    dom.storyFlowViewport.addEventListener('dragstart', (event) => {
+        if (event.target.closest('.story-node-media img')) {
+            event.preventDefault();
+        }
+    });
+
+    function handleMouseViewportDrag(event) {
+        if (!viewportDragState || viewportDragState.pointerId !== null) return;
+        moveViewportDrag(event);
+    }
+
+    function finishMouseViewportDrag() {
+        if (!viewportDragState || viewportDragState.pointerId !== null) return;
+        dom.storyFlowViewport.classList.remove('dragging');
+        viewportDragState = null;
+        window.removeEventListener('mousemove', handleMouseViewportDrag);
+        window.removeEventListener('mouseup', finishMouseViewportDrag);
+    }
+}
+
+function bindShowcaseDragging() {
+    if (!dom.storyShowcaseViewport) return;
+
+    dom.storyShowcaseViewport.addEventListener('pointerdown', (event) => {
+        if (event.target.closest('button')) return;
+        showcaseDragState = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            startScrollLeft: dom.storyShowcaseViewport.scrollLeft,
+            startPanY: showcasePanY
+        };
+        dom.storyShowcaseViewport.classList.add('dragging');
+        dom.storyShowcaseViewport.setPointerCapture(event.pointerId);
+    });
+
+    dom.storyShowcaseViewport.addEventListener('pointermove', (event) => {
+        if (!showcaseDragState || showcaseDragState.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        const deltaX = event.clientX - showcaseDragState.startX;
+        const deltaY = event.clientY - showcaseDragState.startY;
+        dom.storyShowcaseViewport.scrollLeft = showcaseDragState.startScrollLeft - deltaX;
+        applyShowcasePanY(showcaseDragState.startPanY + deltaY);
+    }, { passive: false });
+
+    const finishDrag = (event) => {
+        if (!showcaseDragState || showcaseDragState.pointerId !== event.pointerId) return;
+        dom.storyShowcaseViewport.classList.remove('dragging');
+        if (dom.storyShowcaseViewport.hasPointerCapture(event.pointerId)) {
+            dom.storyShowcaseViewport.releasePointerCapture(event.pointerId);
+        }
+        showcaseDragState = null;
+    };
+
+    dom.storyShowcaseViewport.addEventListener('pointerup', finishDrag);
+    dom.storyShowcaseViewport.addEventListener('pointercancel', finishDrag);
+    dom.storyShowcaseViewport.addEventListener('lostpointercapture', () => {
+        dom.storyShowcaseViewport.classList.remove('dragging');
+        showcaseDragState = null;
+    });
+}
+
+function readStoryBackgroundFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('读取背景图片失败'));
+        reader.readAsDataURL(file);
+    });
+}
+
+function showInlineStoryFeedback(trigger, message = '加入成功') {
+    if (!trigger) return;
+    const host = trigger.closest('.photo-card, .group-nav-card, .group-nav-btn') || trigger.parentElement;
+    if (!host) return;
+    host.querySelector('.inline-story-feedback')?.remove();
+    const bubble = document.createElement('span');
+    bubble.className = 'inline-story-feedback';
+    bubble.textContent = message;
+    host.appendChild(bubble);
+    window.setTimeout(() => {
+        bubble.classList.add('is-hiding');
+        window.setTimeout(() => bubble.remove(), 260);
+    }, 1300);
 }
 
 async function addItemsToStory(photoIds, options = {}) {
@@ -701,6 +1255,7 @@ async function addItemsToStory(photoIds, options = {}) {
         return;
     }
 
+    showStatusNotice(`正在加入“${story.name}”...`, { tone: 'info', duration: 0 });
     const data = await addStoryItemsRequest(story.id, {
         photoIds,
         sourceType: options.sourceType || 'photo',
@@ -712,11 +1267,14 @@ async function addItemsToStory(photoIds, options = {}) {
 
     const baseMessage = data.addedCount > 0
         ? `已加入 ${data.addedCount} 张到“${data.story.name}”`
-        : `这些图片已经在“${data.story.name}”里了`;
-    const skippedMessage = data.skippedCount > 0 ? `，跳过 ${data.skippedCount} 张重复内容` : '';
+        : `该图已添加到“${data.story.name}”`;
+    const skippedMessage = data.skippedCount > 0
+        ? `，${data.skippedCount} 张已添加过，已跳过`
+        : '';
 
     showStatusNotice(`${baseMessage}${skippedMessage}`, {
         tone: 'success',
+        duration: 5200,
         actionLabel: '打开故事模式',
         onAction: () => {
             state.siteView = 'story';
@@ -724,21 +1282,22 @@ async function addItemsToStory(photoIds, options = {}) {
             renderSiteView();
         }
     });
+    showInlineStoryFeedback(options.trigger, data.addedCount > 0 ? '加入成功' : '该图已添加');
 }
 
-export async function promptAddPhotoToStory(photoId) {
+export async function promptAddPhotoToStory(photoId, options = {}) {
     const normalizedId = String(photoId || '').trim();
     if (!normalizedId) return;
 
     try {
-        await addItemsToStory([normalizedId], { targetLabel: '加入故事', sourceType: 'photo' });
+        await addItemsToStory([normalizedId], { targetLabel: '加入故事', sourceType: 'photo', trigger: options.trigger || null });
     } catch (error) {
         console.error('加入故事失败:', error);
         showStatusNotice(error.message || '加入故事失败，请稍后重试', { tone: 'error' });
     }
 }
 
-export async function promptAddGroupToStory(groupName) {
+export async function promptAddGroupToStory(groupName, options = {}) {
     const normalizedGroupName = String(groupName || '').trim();
     if (!normalizedGroupName) return;
     const photoIds = state.photos
@@ -754,7 +1313,8 @@ export async function promptAddGroupToStory(groupName) {
         await addItemsToStory(photoIds, {
             targetLabel: '加入故事',
             sourceType: 'group',
-            sourceGroupName: normalizedGroupName
+            sourceGroupName: normalizedGroupName,
+            trigger: options.trigger || null
         });
     } catch (error) {
         console.error('分组加入故事失败:', error);
@@ -765,13 +1325,17 @@ export async function promptAddGroupToStory(groupName) {
 export async function loadStories() {
     try {
         const data = await fetchStories();
-        setStories(data.stories || []);
+        normalizeStoryOrder(data.stories || []);
         ensureActiveStory();
         renderSiteView();
     } catch (error) {
         console.error('加载故事失败:', error);
         showStatusNotice(error.message || '加载故事失败，请稍后重试', { tone: 'error' });
     }
+}
+
+export function refreshStoryView() {
+    renderStoryView();
 }
 
 export function initStory() {
@@ -786,6 +1350,54 @@ export function initStory() {
     dom.storyCreateEmptyBtn?.addEventListener('click', handleCreateStory);
     dom.storyRenameBtn?.addEventListener('click', handleRenameStory);
     dom.storyDeleteBtn?.addEventListener('click', handleDeleteStory);
+    dom.storyShowcaseBtn?.addEventListener('click', openStoryShowcase);
+
+    dom.storyBackgroundSelect?.addEventListener('change', () => {
+        const story = getActiveStory();
+        if (!story) return;
+        writeLocalStoryBackground(story.id, '');
+        persistStoryAppearance(story.id, { backgroundPhotoId: dom.storyBackgroundSelect.value || '' });
+    });
+
+    dom.storyBackgroundOpacityInput?.addEventListener('input', () => {
+        const opacity = clampBackgroundOpacity(Number(dom.storyBackgroundOpacityInput.value) / 100);
+        if (dom.storyBackgroundOpacityValue) {
+            dom.storyBackgroundOpacityValue.textContent = `${Math.round(opacity * 100)}%`;
+        }
+        const story = getActiveStory();
+        if (story) {
+            applyStoryBackground({ ...story, backgroundOpacity: opacity });
+            if (dom.storyShowcase && !dom.storyShowcase.hidden) {
+                renderShowcase({ ...story, backgroundOpacity: opacity });
+            }
+        }
+    });
+
+    dom.storyBackgroundOpacityInput?.addEventListener('change', () => {
+        const story = getActiveStory();
+        if (!story) return;
+        const opacity = clampBackgroundOpacity(Number(dom.storyBackgroundOpacityInput.value) / 100);
+        persistStoryAppearance(story.id, { backgroundOpacity: opacity });
+    });
+
+    dom.storyBackgroundFileInput?.addEventListener('change', async () => {
+        const story = getActiveStory();
+        const file = dom.storyBackgroundFileInput.files?.[0];
+        if (!story || !file) return;
+        try {
+            const dataUrl = await readStoryBackgroundFile(file);
+            writeLocalStoryBackground(story.id, dataUrl);
+            updateActiveStory({ ...story, backgroundPhotoId: '' });
+            await persistStoryAppearance(story.id, { backgroundPhotoId: '' });
+            renderStoryView();
+            showStatusNotice('本地背景已应用到当前浏览器', { tone: 'success', duration: 2200 });
+        } catch (error) {
+            console.error('读取本地故事背景失败:', error);
+            showStatusNotice(error.message || '读取本地背景失败', { tone: 'error' });
+        } finally {
+            dom.storyBackgroundFileInput.value = '';
+        }
+    });
 
     dom.storyTimelinePrevBtn?.addEventListener('click', () => {
         dom.storyFlowViewport?.scrollBy({ left: -(dom.storyFlowViewport.clientWidth * 0.78), behavior: 'smooth' });
@@ -808,9 +1420,11 @@ export function initStory() {
         }, 650);
     });
 
-    dom.storyFlowSurface?.addEventListener('click', async (event) => {
+    dom.storyStage?.addEventListener('click', async (event) => {
         const removeBtn = event.target.closest('[data-story-remove-item]');
         if (removeBtn) {
+            event.preventDefault();
+            event.stopPropagation();
             const story = getActiveStory();
             const itemId = removeBtn.getAttribute('data-story-remove-item') || '';
             if (!story || !itemId) return;
@@ -829,6 +1443,8 @@ export function initStory() {
 
         const adjustBtn = event.target.closest('[data-story-adjust-item]');
         if (adjustBtn) {
+            event.preventDefault();
+            event.stopPropagation();
             const itemId = adjustBtn.getAttribute('data-story-adjust-item') || '';
             const direction = adjustBtn.getAttribute('data-story-adjust') || '';
             if (!itemId || !direction) return;
@@ -836,16 +1452,87 @@ export function initStory() {
         }
     });
 
-    dom.storyFlowSurface?.addEventListener('pointerdown', (event) => {
+    dom.storyStage?.addEventListener('pointerdown', (event) => {
         const handle = event.target.closest('[data-story-drag-handle]');
         if (!handle) return;
         startNodeDrag(event, handle);
     });
 
+    dom.storyShowcaseMenuBtn?.addEventListener('click', () => {
+        const isHidden = dom.storyShowcaseMenu?.hidden !== false;
+        if (dom.storyShowcaseMenu) dom.storyShowcaseMenu.hidden = !isHidden;
+        dom.storyShowcaseMenuBtn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+    });
+
+    dom.storyShowcasePrevBtn?.addEventListener('click', () => {
+        dom.storyShowcaseViewport?.scrollBy({ left: -(dom.storyShowcaseViewport.clientWidth * 0.76), behavior: 'smooth' });
+    });
+
+    dom.storyShowcaseNextBtn?.addEventListener('click', () => {
+        dom.storyShowcaseViewport?.scrollBy({ left: dom.storyShowcaseViewport.clientWidth * 0.76, behavior: 'smooth' });
+    });
+
+    dom.storyShowcaseAutoplayBtn?.addEventListener('click', () => {
+        toggleShowcaseAutoplay();
+    });
+
+    dom.storyShowcaseResetBtn?.addEventListener('click', () => {
+        stopShowcaseAutoplay();
+        dom.storyShowcaseViewport?.scrollTo({ left: 0, behavior: 'auto' });
+        applyShowcasePanY(0);
+    });
+
+    dom.storyShowcaseCloseBtn?.addEventListener('click', closeStoryShowcase);
+
+    dom.storyChoiceList?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-story-choice-id]');
+        if (!button) return;
+        const storyId = button.getAttribute('data-story-choice-id') || '';
+        closeStoryChoiceModal(state.stories.find((story) => story.id === storyId) || null);
+    });
+
+    dom.storyChoiceCreateBtn?.addEventListener('click', async () => {
+        const name = window.prompt('给新故事起个名字吧', '新的图片故事');
+        if (name === null) return;
+        try {
+            const story = await createStoryFlow(name);
+            closeStoryChoiceModal(story);
+        } catch (error) {
+            console.error('创建故事失败:', error);
+            showStatusNotice(error.message || '创建故事失败，请稍后重试', { tone: 'error' });
+        }
+    });
+
+    dom.storyChoiceModal?.addEventListener('click', (event) => {
+        if (event.target.closest('[data-story-choice-cancel]')) {
+            closeStoryChoiceModal(null);
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && dom.storyShowcase && !dom.storyShowcase.hidden) {
+            closeStoryShowcase();
+        } else if (event.key === 'Escape' && dom.storyChoiceModal && !dom.storyChoiceModal.hidden) {
+            closeStoryChoiceModal(null);
+        }
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement && dom.storyShowcase && !dom.storyShowcase.hidden) {
+            dom.storyShowcase.hidden = true;
+            document.body.classList.remove('story-showcase-open');
+        }
+    });
+
     bindViewportDragging();
+    bindShowcaseDragging();
     window.addEventListener('resize', () => {
         if (state.siteView === 'story') {
             renderStoryView();
+        }
+        if (dom.storyShowcase && !dom.storyShowcase.hidden) {
+            const story = getActiveStory();
+            if (story) renderShowcase(story);
         }
     });
     renderSiteView();

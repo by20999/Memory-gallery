@@ -327,3 +327,17 @@ X-Admin-Password: <DELETE_PASSWORD>
   "error": "错误说明"
 }
 ```
+## 2026-06-12 补充：故事背景字段
+
+`PATCH /api/stories/:id` 现在还支持更新故事背景外观：
+
+```json
+{
+  "backgroundPhotoId": "a.jpg",
+  "backgroundOpacity": 0.18
+}
+```
+
+- `backgroundPhotoId`：相册中已上传图片的文件名，空字符串表示不使用相册背景。
+- `backgroundOpacity`：背景透明度，服务端会限制在 `0` 到 `0.55`，默认 `0.18`。
+- 用户从电脑本地上传的故事背景只保存在当前浏览器 `localStorage`，不进入 API 和服务器 JSON。

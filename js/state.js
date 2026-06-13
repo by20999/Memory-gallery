@@ -22,6 +22,8 @@ export const state = {
     sortMode: 'custom',
     contentFilter: 'all',
     viewMode: 'grid',
+    page: 1,
+    pageSize: 20,
     siteView: 'album',
     activeStoryId: '',
     draggedPhotoId: null,

@@ -5,9 +5,102 @@
       "name": "ATRI-My Dear Moments",
       "description": "",
       "content": "",
+      "backgroundPhotoId": "Snipaste_2026-04-19_11-26-49.png",
+      "backgroundOpacity": 0.55,
       "createdAt": "2026-06-12T07:16:20.980Z",
-      "updatedAt": "2026-06-12T07:36:33.706Z",
-      "items": []
+      "updatedAt": "2026-06-13T15:20:12.914Z",
+      "items": [
+        {
+          "id": "story-item-mqb41zbq-zcxp17",
+          "photoId": "Snipaste_2026-04-19_11-27-42.png",
+          "position": 0,
+          "curveOffset": 0.18,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-12T15:58:09.686Z"
+        },
+        {
+          "id": "story-item-mqbp469e-dmjg8h",
+          "photoId": "Snipaste_2026-04-19_11-24-38.png",
+          "position": 1,
+          "curveOffset": -0.93,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-13T01:47:43.922Z"
+        },
+        {
+          "id": "story-item-mqbp48wn-1v5dr3",
+          "photoId": "Snipaste_2026-04-19_11-15-23.png",
+          "position": 2,
+          "curveOffset": 0.58,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-13T01:47:47.351Z"
+        },
+        {
+          "id": "story-item-mqbp4apn-bj5f34",
+          "photoId": "Snipaste_2026-04-19_11-15-09.png",
+          "position": 3,
+          "curveOffset": -0.12,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-13T01:47:49.691Z"
+        },
+        {
+          "id": "story-item-mqbp4cc3-114tqy",
+          "photoId": "Snipaste_2026-04-19_11-15-56.png",
+          "position": 4,
+          "curveOffset": 0.24,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-13T01:47:51.795Z"
+        },
+        {
+          "id": "story-item-mqci4yrg-q73kzh",
+          "photoId": "Snipaste_2026-04-19_11-13-18.png",
+          "position": 5,
+          "curveOffset": -0.28,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-13T15:20:09.724Z"
+        },
+        {
+          "id": "story-item-mqci4zjn-4lv0h3",
+          "photoId": "Snipaste_2026-04-19_11-13-32.png",
+          "position": 6,
+          "curveOffset": 0.08,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-13T15:20:10.739Z"
+        },
+        {
+          "id": "story-item-mqci50e7-ct1rh9",
+          "photoId": "Snipaste_2026-04-19_11-13-43.png",
+          "position": 7,
+          "curveOffset": -0.18,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-13T15:20:11.839Z"
+        },
+        {
+          "id": "story-item-mqci5182-g4ujg7",
+          "photoId": "Snipaste_2026-04-19_11-14-29.png",
+          "position": 8,
+          "curveOffset": 0.18,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-13T15:20:12.914Z"
+        }
+      ]
     }
   ]
 }

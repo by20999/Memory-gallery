@@ -288,7 +288,7 @@ export async function openLightbox(index) {
     dom.filterBar.classList.remove('visible');
     dom.editBar.classList.remove('visible');
     dom.editToggleBtn.classList.remove('active');
-    dom.editToggleBtn.textContent = '✏️ 编辑图片';
+    dom.editToggleBtn.textContent = '编辑图片';
     dom.commentsList.innerHTML = '<p style="color: #999; text-align: center;">评论加载中...</p>';
     dom.lightbox.classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -453,7 +453,7 @@ export function initLightbox({ onRenderGallery, onOpenSingleDeleteModal, onLoadP
         dom.filterBar.classList.toggle('visible', !isOpen);
         dom.editBar.classList.toggle('visible', !isOpen);
         dom.editToggleBtn.classList.toggle('active', !isOpen);
-        dom.editToggleBtn.textContent = isOpen ? '✏️ 编辑图片' : '✖ 关闭编辑';
+        dom.editToggleBtn.textContent = isOpen ? '编辑图片' : '关闭编辑';
     });
     if (dom.lightboxImgWrap) {
         dom.lightboxImgWrap.addEventListener('touchstart', (event) => {

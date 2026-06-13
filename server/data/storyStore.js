@@ -39,6 +39,16 @@ function normalizeStoryItem(entry = {}, index = 0) {
     };
 }
 
+function normalizeBackgroundPhotoId(value) {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeBackgroundOpacity(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0.18;
+    return Math.max(0, Math.min(0.55, Math.round(numeric * 100) / 100));
+}
+
 function normalizeStoryEntry(entry = {}, index = 0) {
     const fallbackCreatedAt = new Date().toISOString();
     const createdAt = normalizeDateString(entry.createdAt, fallbackCreatedAt);
@@ -60,6 +70,8 @@ function normalizeStoryEntry(entry = {}, index = 0) {
         name: typeof entry.name === 'string' && entry.name.trim() ? entry.name.trim().slice(0, 40) : `未命名故事 ${index + 1}`,
         description: typeof entry.description === 'string' ? entry.description.trim().slice(0, 120) : '',
         content: typeof entry.content === 'string' ? entry.content.slice(0, 12000) : '',
+        backgroundPhotoId: normalizeBackgroundPhotoId(entry.backgroundPhotoId),
+        backgroundOpacity: normalizeBackgroundOpacity(entry.backgroundOpacity),
         createdAt,
         updatedAt,
         items
@@ -101,6 +113,8 @@ module.exports = {
     normalizeStoryItem,
     normalizeStoryEntry,
     normalizeStoryStore,
+    normalizeBackgroundPhotoId,
+    normalizeBackgroundOpacity,
     loadStoryData,
     saveStoryData
 };

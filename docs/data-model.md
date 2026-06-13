@@ -150,3 +150,17 @@ story-data.json
 - `album_avatar_image`：头像图片，前端裁剪压缩后的 data URL，保存在 `localStorage`。
 
 这些字段不写入 `photo-data.json`、`group-data.json` 或 `story-data.json`，也不会上传服务器。清理浏览器数据、换设备或换浏览器后需要重新设置。
+## 2026-06-12 补充：故事背景字段
+
+`story-data.json` 的每个故事对象新增两个外观字段：
+
+```json
+{
+  "backgroundPhotoId": "a.jpg",
+  "backgroundOpacity": 0.18
+}
+```
+
+- `backgroundPhotoId`：引用 `uploads/` 中已存在的相册图片文件名；空字符串表示不使用相册背景。
+- `backgroundOpacity`：故事背景透明度，规范化范围为 `0` 到 `0.55`，默认 `0.18`，只用于普通故事模式和全屏回忆剧场的氛围背景。
+- 本地上传的故事背景图不写入 `story-data.json`，仅保存在当前浏览器 `localStorage`，键名为 `album_story_background_<storyId>`。

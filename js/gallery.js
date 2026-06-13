@@ -11,7 +11,8 @@ const UNGROUPED_GROUP_NAME = '\u672a\u5206\u7ec4';
 const SORT_LABELS = { custom: '\u624b\u52a8\u987a\u5e8f', newest: '\u6700\u65b0\u4e0a\u4f20', oldest: '\u6700\u65e9\u4e0a\u4f20', name: '\u6309\u540d\u79f0' };
 const CONTENT_FILTER_LABELS = { all: '\u5168\u90e8\u7167\u7247', captioned: '\u4ec5\u770b\u6709\u7b80\u4ecb', favorites: '\u4ec5\u770b\u6536\u85cf' };
 const VIEW_MODE_LABELS = { grid: '\u7f51\u683c', timeline: '\u65f6\u95f4\u7ebf' };
-const MEMORY_CARD_LIMIT = 6;
+const RECENT_MEMORY_CARD_LIMIT = 3;
+const TODAY_MEMORY_CARD_LIMIT = 3;
 const TIMELINE_PREVIEW_LIMIT = 4;
 const RECENT_UPLOAD_HIGHLIGHT_MS = 2400;
 
@@ -65,7 +66,7 @@ function isHomeView() {
 function getRecentMemoryPhotos() {
     return [...getPersistedPhotos()]
         .sort((a, b) => (b.uploadTime || 0) - (a.uploadTime || 0))
-        .slice(0, MEMORY_CARD_LIMIT);
+        .slice(0, RECENT_MEMORY_CARD_LIMIT);
 }
 
 function getTodayMemoryPhotos() {
@@ -82,7 +83,7 @@ function getTodayMemoryPhotos() {
                 && date.getFullYear() < year;
         })
         .sort((a, b) => (b.uploadTime || 0) - (a.uploadTime || 0))
-        .slice(0, MEMORY_CARD_LIMIT);
+        .slice(0, TODAY_MEMORY_CARD_LIMIT);
 }
 
 function getViewModeLabel(mode = state.viewMode) {
@@ -117,6 +118,89 @@ function getTimelineYearLabel(dateValue) {
 
 function getTimelinePhotos(photos) {
     return [...photos].sort((a, b) => (b.uploadTime || 0) - (a.uploadTime || 0));
+}
+
+function resetGalleryPage() {
+    state.page = 1;
+}
+
+function clampPage(page, totalPages) {
+    const numeric = Number.parseInt(page, 10);
+    if (!Number.isFinite(numeric)) return 1;
+    return Math.max(1, Math.min(Math.max(totalPages, 1), numeric));
+}
+
+function getPageItems(totalPages, currentPage) {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1);
+    const pages = [1];
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+    if (start > 2) pages.push('ellipsis-start');
+    for (let page = start; page <= end; page += 1) pages.push(page);
+    if (end < totalPages - 1) pages.push('ellipsis-end');
+    pages.push(totalPages);
+    return pages;
+}
+
+function renderPaginationControls(totalItems, totalPages) {
+    const containers = [dom.galleryPaginationTop, dom.galleryPaginationBottom].filter(Boolean);
+    const shouldShow = state.viewMode === 'grid' && totalPages > 1;
+    const prevIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6 9 12l6 6"/></svg>';
+    const nextIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+    containers.forEach((container) => {
+        container.hidden = !shouldShow;
+        if (!shouldShow) {
+            container.innerHTML = '';
+            return;
+        }
+
+        const currentPage = clampPage(state.page, totalPages);
+        const from = (currentPage - 1) * state.pageSize + 1;
+        const to = Math.min(totalItems, currentPage * state.pageSize);
+        const pageItems = getPageItems(totalPages, currentPage);
+        container.innerHTML = `
+            <div class="pagination-summary">第 ${currentPage} / ${totalPages} 页 · ${from}-${to} / ${totalItems} 张</div>
+            <div class="pagination-controls">
+                <button class="pagination-arrow" type="button" data-page-action="prev" ${currentPage <= 1 ? 'disabled' : ''} aria-label="上一页">${prevIcon}</button>
+                <div class="pagination-pages">
+                    ${pageItems.map((item) => typeof item === 'number'
+                        ? `<button class="pagination-page${item === currentPage ? ' active' : ''}" type="button" data-page="${item}" aria-current="${item === currentPage ? 'page' : 'false'}">${item}</button>`
+                        : '<span class="pagination-ellipsis">…</span>'
+                    ).join('')}
+                </div>
+                <button class="pagination-arrow" type="button" data-page-action="next" ${currentPage >= totalPages ? 'disabled' : ''} aria-label="下一页">${nextIcon}</button>
+            </div>
+            <form class="pagination-jump" data-pagination-jump>
+                <label>跳到 <input type="number" min="1" max="${totalPages}" value="${currentPage}" inputmode="numeric" aria-label="输入页码"></label>
+                <button type="submit">前往</button>
+            </form>
+        `;
+
+        container.querySelectorAll('[data-page]').forEach((button) => {
+            button.addEventListener('click', () => {
+                state.page = clampPage(button.dataset.page, totalPages);
+                renderGallery();
+                dom.gallery?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+        container.querySelector('[data-page-action="prev"]')?.addEventListener('click', () => {
+            state.page = clampPage(currentPage - 1, totalPages);
+            renderGallery();
+            dom.gallery?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        container.querySelector('[data-page-action="next"]')?.addEventListener('click', () => {
+            state.page = clampPage(currentPage + 1, totalPages);
+            renderGallery();
+            dom.gallery?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        container.querySelector('[data-pagination-jump]')?.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const input = event.currentTarget.querySelector('input');
+            state.page = clampPage(input?.value, totalPages);
+            renderGallery();
+            dom.gallery?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
 }
 
 function getTopTags(photos, limit = 3) {
@@ -382,6 +466,7 @@ function clearSearchAndTagFilters() {
     dom.searchInput.value = '';
     state.searchKeyword = '';
     state.activeTagFilter = '';
+    resetGalleryPage();
     renderGallery();
 }
 
@@ -390,6 +475,7 @@ export function applyGroupFilter(groupName) {
     state.searchKeyword = '';
     state.activeTagFilter = '';
     dom.searchInput.value = '';
+    resetGalleryPage();
     renderGallery();
 }
 
@@ -400,6 +486,7 @@ export function applyTagFilter(tag) {
     state.searchKeyword = '';
     state.activeTagFilter = keyword;
     dom.searchInput.value = '';
+    resetGalleryPage();
     renderGallery();
 }
 
@@ -447,13 +534,13 @@ function renderGroupNav() {
             storyBtn.textContent = '加入故事';
             storyBtn.addEventListener('click', async (event) => {
                 event.stopPropagation();
-                await promptAddGroupToStory(summary.name);
+                await promptAddGroupToStory(summary.name, { trigger: storyBtn });
             });
             storyBtn.addEventListener('keydown', async (event) => {
                 if (event.key !== 'Enter' && event.key !== ' ') return;
                 event.preventDefault();
                 event.stopPropagation();
-                await promptAddGroupToStory(summary.name);
+                await promptAddGroupToStory(summary.name, { trigger: storyBtn });
             });
             button.appendChild(storyBtn);
         }
@@ -467,17 +554,20 @@ function canManageActiveGroup() {
 }
 
 function buildMemoryCard(photo) {
-    const caption = photo.caption ? escapeHtml(photo.caption) : '<span class="memory-card-empty">\u8fd8\u6ca1\u5199\u6545\u4e8b</span>';
+    const rawCaption = String(photo.caption || '').trim();
     const dateLabel = formatUploadDate(photo.uploadTime) || '\u672a\u8bb0\u5f55\u65e5\u671f';
+    const title = rawCaption || '\u672a\u5199\u63cf\u8ff0\u7684\u7167\u7247';
+    const caption = rawCaption ? escapeHtml(rawCaption) : '<span class="memory-card-empty">\u8fd8\u6ca1\u5199\u6545\u4e8b</span>';
+    const dateMeta = `<span>${escapeHtml(dateLabel)}</span>`;
     return `
         <button class="memory-card" type="button" data-memory-photo-id="${escapeHtml(photo.id)}">
             <div class="memory-card-cover">
-                <img src="${escapeHtml(getDisplayPhotoSrc(photo))}" alt="${escapeHtml(photo.name || '\u5bb6\u5ead\u7167\u7247')}" loading="lazy">
+                <img src="${escapeHtml(getDisplayPhotoSrc(photo))}" alt="${escapeHtml(title)}" loading="lazy">
                 ${photo.favorited ? '<span class=\"memory-card-badge\">\u2605 \u6536\u85cf</span>' : ''}
             </div>
             <div class="memory-card-meta">
-                <strong>${escapeHtml(photo.name || '\u5bb6\u5ead\u7167\u7247')}</strong>
-                <span>${escapeHtml(dateLabel)}</span>
+                <strong>${escapeHtml(title)}</strong>
+                ${dateMeta}
                 <p>${caption}</p>
             </div>
         </button>
@@ -664,8 +754,8 @@ function renderTimelineGallery(visibleIndexMap) {
         const featured = group.items[0];
         const featuredIndex = visibleIndexMap.get(featured.id);
         const featuredOpenable = !featured.isLocalPreview && typeof featuredIndex === 'number';
-        const featuredTitle = featured.caption || featured.name || '这一页记录';
         const featuredDate = formatUploadDate(featured.uploadTime) || '还没有记录日期';
+        const featuredTitle = String(featured.caption || '').trim() || featuredDate || '这一页记录';
         const topTags = getTopTags(group.items, 3);
         const favoriteCount = group.items.filter((photo) => photo.favorited).length;
         const storyCount = getStoryPhotoCount(group.items);
@@ -675,10 +765,11 @@ function renderTimelineGallery(visibleIndexMap) {
         const thumbs = group.items.slice(1, TIMELINE_PREVIEW_LIMIT + 1).map((photo) => {
             const thumbIndex = visibleIndexMap.get(photo.id);
             const thumbOpenable = !photo.isLocalPreview && typeof thumbIndex === 'number';
+            const thumbLabel = String(photo.caption || '').trim() || formatUploadDate(photo.uploadTime) || '还没补描述';
             return `
                 <button class="timeline-thumb${thumbOpenable ? '' : ' is-disabled'}${isRecentUploadedPhoto(photo.id) ? ' recent-upload' : ''}" type="button" ${thumbOpenable ? `data-timeline-index="${thumbIndex}"` : 'disabled'}>
-                    <img src="${escapeHtml(getPreviewPhotoSrc(photo))}" alt="${escapeHtml(photo.name || '时间线照片')}" loading="lazy">
-                    <span class="timeline-thumb-label">${escapeHtml(photo.caption || photo.name || '还没补描述')}</span>
+                    <img src="${escapeHtml(getPreviewPhotoSrc(photo))}" alt="${escapeHtml(thumbLabel)}" loading="lazy">
+                    <span class="timeline-thumb-label">${escapeHtml(thumbLabel)}</span>
                 </button>
             `;
         }).join('');
@@ -704,7 +795,7 @@ function renderTimelineGallery(visibleIndexMap) {
                     </div>
                     <div class="timeline-feature">
                         <button class="timeline-feature-media${featuredOpenable ? '' : ' is-disabled'}${isRecentUploadedPhoto(featured.id) ? ' recent-upload' : ''}" type="button" ${featuredOpenable ? `data-timeline-index="${featuredIndex}"` : 'disabled'}>
-                            <img src="${escapeHtml(getOriginalPhotoSrc(featured))}" alt="${escapeHtml(featured.name || '时间线封面')}" loading="lazy">
+                            <img src="${escapeHtml(getOriginalPhotoSrc(featured))}" alt="${escapeHtml(featuredTitle)}" loading="lazy">
                             ${featured.favorited ? '<span class="timeline-photo-badge">收藏</span>' : ''}
                             ${featured.isLocalPreview ? '<span class="timeline-photo-badge upload">上传中</span>' : ''}
                         </button>
@@ -793,6 +884,7 @@ function canDragReorder() {
         && state.activeGroupName === DEFAULT_GROUP_NAME
         && state.sortMode === 'custom'
         && state.contentFilter === 'all'
+        && state.visiblePhotos.length <= state.pageSize
         && !state.batchMode
         && !state.searchKeyword.trim()
         && !state.activeTagFilter
@@ -894,7 +986,9 @@ function flushImageLoadQueue() {
 }
 
 function getSelectableVisiblePhotos() {
-    return state.visiblePhotos.filter((photo) => !photo.isLocalPreview);
+    const pageStart = state.viewMode === 'grid' ? (state.page - 1) * state.pageSize : 0;
+    const pageEnd = state.viewMode === 'grid' ? pageStart + state.pageSize : state.visiblePhotos.length;
+    return state.visiblePhotos.slice(pageStart, pageEnd).filter((photo) => !photo.isLocalPreview);
 }
 
 function syncBatchSelectionToVisible() {
@@ -945,6 +1039,7 @@ async function promptBatchGroupAssignment() {
         state.activeGroupName = data.groupName;
         state.searchKeyword = '';
         state.activeTagFilter = '';
+        resetGalleryPage();
         dom.searchInput.value = '';
         exitBatchMode();
         await loadPhotos();
@@ -1153,6 +1248,14 @@ export function renderGallery() {
     const nextVisiblePhotos = state.viewMode === 'timeline' ? getTimelinePhotos(groupedPhotos) : groupedPhotos;
     setVisiblePhotos(nextVisiblePhotos);
     const visibleIndexMap = new Map(state.visiblePhotos.map((photo, index) => [photo.id, index]));
+    const totalPages = state.viewMode === 'grid' ? Math.max(1, Math.ceil(state.visiblePhotos.length / state.pageSize)) : 1;
+    state.page = clampPage(state.page, totalPages);
+    const pageStart = (state.page - 1) * state.pageSize;
+    const pageEnd = pageStart + state.pageSize;
+    const pagePhotoIds = new Set(state.viewMode === 'grid' ? state.visiblePhotos.slice(pageStart, pageEnd).map((photo) => photo.id) : state.visiblePhotos.map((photo) => photo.id));
+    const pagedGroups = state.viewMode === 'grid'
+        ? groups.map((group) => ({ ...group, items: group.items.filter((photo) => pagePhotoIds.has(photo.id)) })).filter((group) => group.items.length > 0)
+        : groups;
     const dragEnabled = canDragReorder();
     dom.gallery.innerHTML = '';
     clearImageLoadQueue();
@@ -1171,6 +1274,7 @@ export function renderGallery() {
     });
     updateHeaderStats(getAllPhotos().length, state.visiblePhotos.length);
     updateSearchHint(state.visiblePhotos.length);
+    renderPaginationControls(state.visiblePhotos.length, totalPages);
     dom.gallery.classList.toggle('timeline-mode', state.viewMode === 'timeline');
     dom.gallery.classList.toggle('drag-enabled', dragEnabled);
     dom.gallery.classList.toggle('is-sorting', Boolean(state.draggedPhotoId));
@@ -1195,7 +1299,7 @@ export function renderGallery() {
 
     const fragment = document.createDocumentFragment();
     let animationIndex = 0;
-    groups.forEach((group) => {
+    pagedGroups.forEach((group) => {
         if (group.title) {
             const groupTitle = document.createElement('div');
             groupTitle.className = 'gallery-group-title';
@@ -1216,8 +1320,10 @@ export function renderGallery() {
             card.style.animationDelay = `${animationIndex * 0.04}s`;
             animationIndex += 1;
 
+            const photoDescription = String(photo.caption || '').trim();
+            const photoDateLabel = getPhotoDateLabel(photo);
             const img = document.createElement('img');
-            img.alt = photo.name || '新上传的照片';
+            img.alt = photoDescription || photoDateLabel || '相册照片';
             if (photo.isLocalPreview) {
                 img.src = getOriginalPhotoSrc(photo);
                 img.dataset.loading = 'done';
@@ -1236,19 +1342,19 @@ export function renderGallery() {
             const hoverMeta = document.createElement('div');
             hoverMeta.className = 'card-hover-meta';
             hoverMeta.innerHTML = `
-                <span class="card-date-badge">${escapeHtml(getPhotoDateLabel(photo))}</span>
-                <span class="card-file-badge">${escapeHtml(photo.name || '未命名照片')}</span>
+                <span class="card-date-badge">${escapeHtml(photoDateLabel)}</span>
+                ${photoDescription ? `<span class="card-caption-badge">${escapeHtml(photoDescription)}</span>` : ''}
             `;
 
             const cardFrame = document.createElement('span');
             cardFrame.className = 'card-frame';
 
-            const caption = photo.caption ? `<div class="card-caption">${highlightText(photo.caption)}</div>` : '';
+            const caption = photoDescription ? `<div class="card-caption">${highlightText(photoDescription)}</div>` : '';
             const tags = (photo.tags || []).slice(0, 3).map((tag) => buildFilterChip(`#${highlightText(tag)}`, 'data-filter-tag', tag, normalizeCompare(tag) === normalizeCompare(state.activeTagFilter))).join('');
             const groupName = getPhotoGroupName(photo);
-            const groupBadge = groupName ? buildFilterChip(`分组 · ${highlightText(groupName)}`, 'data-filter-group', groupName, groupName === state.activeGroupName && !state.searchKeyword.trim() && !state.activeTagFilter) : '';
+            const groupBadge = '';
             const eventBadge = photo.eventName ? `<span class="card-tag event-chip">${highlightText(photo.eventName)}</span>` : '';
-            const coverBadge = groupName && photo.groupCoverPhotoId === photo.id ? '<span class="card-tag group-cover-chip">分组封面</span>' : '';
+            const coverBadge = '';
             const uploadBadge = photo.isLocalPreview ? '<span class="card-tag upload-chip">上传中</span>' : '';
             const favoriteBadge = photo.favorited ? '<span class="card-tag favorite-chip">★ 已收藏</span>' : '';
             const reactions = photo.reactions || {};
@@ -1290,7 +1396,7 @@ export function renderGallery() {
                 storyBtn.textContent = '加入故事';
                 storyBtn.addEventListener('click', async (event) => {
                     event.stopPropagation();
-                    await promptAddPhotoToStory(photo.id);
+                    await promptAddPhotoToStory(photo.id, { trigger: storyBtn });
                 });
                 card.appendChild(storyBtn);
             }
@@ -1412,16 +1518,19 @@ export function initGallery({ onOpenLightbox, onOpenBatchDeleteModal, onOpenGrou
     dom.searchInput.addEventListener('input', () => {
         state.searchKeyword = dom.searchInput.value.trim();
         if (state.searchKeyword) state.activeTagFilter = '';
+        resetGalleryPage();
         renderGallery();
     });
 
     dom.sortSelect.addEventListener('change', () => {
         state.sortMode = dom.sortSelect.value || 'custom';
+        resetGalleryPage();
         renderGallery();
     });
 
     dom.contentFilterSelect.addEventListener('change', () => {
         state.contentFilter = dom.contentFilterSelect.value || 'all';
+        resetGalleryPage();
         renderGallery();
     });
 
@@ -1434,6 +1543,7 @@ export function initGallery({ onOpenLightbox, onOpenBatchDeleteModal, onOpenGrou
                 return;
             }
             state.viewMode = nextMode;
+            resetGalleryPage();
             renderGallery();
         });
     });

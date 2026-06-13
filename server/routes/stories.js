@@ -11,7 +11,15 @@ const {
 } = require('../data/photoStore');
 const { loadGroupData, syncGroupDataWithPhotos, saveGroupData } = require('../data/groupStore');
 const { ensureAndPersistThumbnails } = require('../services/thumbnailService');
-const { createId, clampCurveOffset, loadStoryData, saveStoryData, reorderStoryItems } = require('../data/storyStore');
+const {
+    createId,
+    clampCurveOffset,
+    loadStoryData,
+    normalizeBackgroundOpacity,
+    normalizeBackgroundPhotoId,
+    saveStoryData,
+    reorderStoryItems
+} = require('../data/storyStore');
 
 function normalizeStoryName(value) {
     return typeof value === 'string' ? value.trim().slice(0, 40) : '';
@@ -89,6 +97,7 @@ function buildStoryResponse(story, photoLookup) {
         ...story,
         itemCount: items.length,
         coverPhoto: items[0]?.photo || null,
+        backgroundPhoto: story.backgroundPhotoId ? (photoLookup.get(story.backgroundPhotoId) || null) : null,
         items
     };
 }
@@ -145,6 +154,8 @@ function createStoriesRouter() {
             name: storyName,
             description: '',
             content: '',
+            backgroundPhotoId: '',
+            backgroundOpacity: 0.18,
             createdAt: now,
             updatedAt: now,
             items: []
@@ -167,8 +178,10 @@ function createStoriesRouter() {
         const hasName = Object.prototype.hasOwnProperty.call(req.body || {}, 'name');
         const hasDescription = Object.prototype.hasOwnProperty.call(req.body || {}, 'description');
         const hasContent = Object.prototype.hasOwnProperty.call(req.body || {}, 'content');
+        const hasBackgroundPhotoId = Object.prototype.hasOwnProperty.call(req.body || {}, 'backgroundPhotoId');
+        const hasBackgroundOpacity = Object.prototype.hasOwnProperty.call(req.body || {}, 'backgroundOpacity');
 
-        if (!hasName && !hasDescription && !hasContent) {
+        if (!hasName && !hasDescription && !hasContent && !hasBackgroundPhotoId && !hasBackgroundOpacity) {
             return res.status(400).json({ error: '没有可更新的内容' });
         }
 
@@ -188,9 +201,22 @@ function createStoriesRouter() {
             story.content = normalizeStoryContent(req.body.content);
         }
 
+        if (hasBackgroundPhotoId) {
+            story.backgroundPhotoId = normalizeBackgroundPhotoId(req.body.backgroundPhotoId);
+        }
+
+        if (hasBackgroundOpacity) {
+            story.backgroundOpacity = normalizeBackgroundOpacity(req.body.backgroundOpacity);
+        }
+
         story.updatedAt = new Date().toISOString();
         saveStoryData(store);
-        res.json({ success: true, story });
+        buildPhotoLookup()
+            .then((photoLookup) => res.json({ success: true, story: buildStoryResponse(story, photoLookup) }))
+            .catch((error) => {
+                console.error('读取故事背景图片失败:', error);
+                res.json({ success: true, story });
+            });
     });
 
     router.delete('/:id', (req, res) => {

@@ -46,7 +46,80 @@
         </div>
     </div>
 
+    <aside class="summer-sidebar" aria-label="相册导航">
+        <div class="sidebar-profile">
+            <div class="sidebar-orbit" aria-hidden="true">
+                <span></span>
+                <span></span>
+            </div>
+            <div class="user-badge" id="userBadge">
+                <span class="user-avatar" id="userAvatar"></span>
+                <span class="user-name" id="userName"></span>
+                <button class="user-edit-btn" id="userEditBtn" title="修改昵称" aria-label="修改昵称">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                        <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17z"/>
+                        <path d="M13.5 7.5l3 3"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="sidebar-brand">
+                <strong>夏日吹奏</strong>
+                <span>记录美好时光</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <button class="sidebar-nav-btn" type="button" data-shell-action="overview">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V20H5a1 1 0 0 1-1-1z"/><path d="M9 20v-6h6v6"/></svg>
+                <span>概览</span>
+            </button>
+            <button class="sidebar-nav-btn active" type="button" data-site-view="album" data-shell-action="album">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="m7 15 3-3 3 3 2-2 3 3"/><circle cx="9" cy="9" r="1.2"/></svg>
+                <span>主相册</span>
+            </button>
+            <button class="sidebar-nav-btn" type="button" data-shell-action="favorites">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m12 4 2.4 5 5.5.8-4 3.9.9 5.5-4.8-2.6-4.8 2.6.9-5.5-4-3.9 5.5-.8z"/></svg>
+                <span>收藏夹</span>
+            </button>
+            <button class="sidebar-nav-btn" type="button" data-site-view="story" data-shell-action="story">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M5 6.5c2.5-1.2 4.7-1.2 7 0 2.3-1.2 4.5-1.2 7 0V19c-2.5-1.2-4.7-1.2-7 0-2.3-1.2-4.5-1.2-7 0z"/><path d="M12 6.5V19"/></svg>
+                <span>故事模式</span>
+            </button>
+            <button class="sidebar-nav-btn" type="button" data-shell-action="trash">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M5 7h14"/><path d="M9 7V5h6v2"/><path d="m8 10 .7 9h6.6l.7-9"/></svg>
+                <span>回收站</span>
+            </button>
+            <button class="sidebar-nav-btn" type="button" data-shell-action="system">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3v3"/><path d="M12 18v3"/><path d="m5.6 5.6 2.1 2.1"/><path d="m16.3 16.3 2.1 2.1"/><path d="M3 12h3"/><path d="M18 12h3"/><circle cx="12" cy="12" r="4"/></svg>
+                <span>系统设置</span>
+            </button>
+        </nav>
+
+        <div class="sidebar-storage-card">
+            <span>SUMMER MEMORIES 2026</span>
+            <strong>蓝色海风存档</strong>
+            <p>照片、故事和收藏都在这里慢慢发光。</p>
+        </div>
+    </aside>
+
     <div class="container">
+        <section class="summer-topbar" aria-label="快捷操作">
+            <div class="topbar-search">
+                <div class="search-box">
+                    <input type="search" id="searchInput" placeholder="搜索分组、描述、标签或月份">
+                    <button id="clearSearchBtn" type="button" hidden>清空</button>
+                </div>
+            </div>
+            <div class="topbar-actions">
+                <button class="topbar-icon-btn" id="topbarRefreshBtn" type="button" data-shell-action="refresh" aria-label="刷新数据">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.4-4.8L4 8"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.4 4.8L20 16"/><path d="M20 20v-4h-4"/></svg>
+                </button>
+                <button class="topbar-icon-btn" type="button" data-shell-action="system" aria-label="系统状态">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 12h4l2-5 4 10 2-5h4"/></svg>
+                </button>
+                <button class="topbar-create-btn" type="button" data-shell-action="create-story">+ 创建新故事</button>
+            </div>
+        </section>
         <header>
             <div class="header-main">
                 <div class="header-copy">
@@ -163,10 +236,6 @@
         </div>
 
         <div class="album-toolbar">
-            <div class="search-box">
-                <input type="search" id="searchInput" placeholder="&#25628;&#32034;&#20998;&#32452;&#12289;&#25991;&#20214;&#21517;&#12289;&#25551;&#36848;&#25110;&#26631;&#31614;">
-                <button id="clearSearchBtn" type="button" hidden>&#28165;&#31354;</button>
-            </div>
             <div class="toolbar-select-group" aria-label="&#30456;&#20876;&#31579;&#36873;&#24037;&#20855;">
                 <label class="toolbar-select" for="sortSelect">
                     <span>&#25490;&#24207;</span>
@@ -193,6 +262,8 @@
             <div class="search-hint" id="searchHint">&#21487;&#20197;&#25628;&#32034;&#20998;&#32452;&#12289;&#25991;&#20214;&#21517;&#12289;&#25551;&#36848;&#12289;&#26631;&#31614;&#25110;&#26376;&#20221;&#65292;&#20063;&#21487;&#20197;&#30452;&#25509;&#28857;&#20987;&#26631;&#31614;&#24555;&#36895;&#31579;&#36873;&#12290;</div>
             <div class="gallery-status" id="galleryStatus" hidden></div>
         </div>
+
+        <nav class="gallery-pagination top" id="galleryPaginationTop" aria-label="相册分页" hidden></nav>
 
         <nav class="group-nav" id="groupNav" aria-label="照片分组导航"></nav>
         <div class="group-actions" id="groupActions" hidden>
@@ -222,15 +293,15 @@
         </div>
 
         <div class="gallery" id="gallery"></div>
+        <nav class="gallery-pagination bottom" id="galleryPaginationBottom" aria-label="相册分页" hidden></nav>
         </section>
 
         <section class="story-workspace" id="storyWorkspace" hidden>
             <div class="story-shell">
                 <aside class="story-sidebar">
                     <div class="story-sidebar-head">
-                        <span class="story-sidebar-kicker">附项目</span>
                         <h2>图片故事模式</h2>
-                        <p>把主相册里的片段，慢慢接成一条像回忆录一样流动的时间线。</p>
+                        <p>故事会按创建顺序排列，照片按加入顺序铺开。</p>
                         <button class="story-primary-btn" id="storyCreateBtn" type="button">创建新故事</button>
                     </div>
                     <div class="story-list" id="storyList"></div>
@@ -239,9 +310,8 @@
                 <section class="story-stage">
                     <div class="story-empty" id="storyEmpty">
                         <div class="story-empty-card">
-                            <span class="story-empty-kicker">Memoir Mode</span>
-                            <h3>这里先留给你的第一本故事</h3>
-                            <p>故事模式默认是空白的。你可以先创建一个故事，然后从主相册把单张图片或整个分组送过来。</p>
+                            <h3>还没有故事</h3>
+                            <p>创建一本故事后，它会出现在左侧列表顶部，再从主相册把照片加入进来。</p>
                             <button class="story-primary-btn" id="storyCreateEmptyBtn" type="button">创建第一本故事</button>
                         </div>
                     </div>
@@ -254,8 +324,30 @@
                                 <p id="storySummary"></p>
                             </div>
                             <div class="story-detail-actions">
+                                <button class="story-secondary-btn showcase" id="storyShowcaseBtn" type="button">全屏展示</button>
                                 <button class="story-secondary-btn" id="storyRenameBtn" type="button">重命名</button>
                                 <button class="story-secondary-btn danger" id="storyDeleteBtn" type="button">删除故事</button>
+                            </div>
+                        </div>
+
+                        <div class="story-appearance-panel">
+                            <div class="story-appearance-copy">
+                                <strong>故事背景</strong>
+                                <span>选一张淡淡铺在后面，只做氛围，不抢照片主体。</span>
+                            </div>
+                            <div class="story-appearance-controls">
+                                <label class="story-background-select-label">
+                                    <span>相册图片</span>
+                                    <select id="storyBackgroundSelect">
+                                        <option value="">不使用背景</option>
+                                    </select>
+                                </label>
+                                <label class="story-local-bg-btn" for="storyBackgroundFileInput">上传本地背景</label>
+                                <input type="file" id="storyBackgroundFileInput" accept="image/*" hidden>
+                                <label class="story-opacity-control">
+                                    <span>透明度 <output id="storyBackgroundOpacityValue">18%</output></span>
+                                    <input type="range" id="storyBackgroundOpacityInput" min="0" max="55" value="18">
+                                </label>
                             </div>
                         </div>
 
@@ -276,7 +368,7 @@
                             <div class="story-editor-head">
                                 <div>
                                     <strong>故事叙述</strong>
-                                    <p>把这条时间流线下方的文字写成一段回忆，就像给照片配一页柔软的旁白。</p>
+                                    <p>写下这组照片背后的时间、地点和一句当时想留住的话。</p>
                                 </div>
                                 <span class="story-editor-status" id="storyEditorStatus">故事文案会自动保存</span>
                             </div>
@@ -287,6 +379,51 @@
             </div>
         </section>
     </div>
+
+    <section class="story-showcase" id="storyShowcase" hidden aria-modal="true" role="dialog" aria-label="故事全屏展示">
+        <div class="story-showcase-bg" id="storyShowcaseBg"></div>
+        <div class="story-showcase-vignette"></div>
+        <header class="story-showcase-head">
+            <div>
+                <p id="storyShowcaseMeta"></p>
+                <h2 id="storyShowcaseTitle"></h2>
+            </div>
+            <div class="story-showcase-control">
+                <button class="story-showcase-menu-btn" id="storyShowcaseMenuBtn" type="button" aria-expanded="false">功能</button>
+                <div class="story-showcase-menu" id="storyShowcaseMenu" hidden>
+                    <button id="storyShowcasePrevBtn" type="button">看更早</button>
+                    <button id="storyShowcaseNextBtn" type="button">看更晚</button>
+                    <button id="storyShowcaseAutoplayBtn" type="button" aria-pressed="false">自动播放</button>
+                    <button id="storyShowcaseResetBtn" type="button">回到开头</button>
+                    <button id="storyShowcaseCloseBtn" type="button">退出展示</button>
+                </div>
+            </div>
+        </header>
+        <div class="story-showcase-viewport" id="storyShowcaseViewport">
+            <div class="story-showcase-track" id="storyShowcaseTrack"></div>
+        </div>
+        <footer class="story-showcase-foot">
+            <p id="storyShowcaseNarration"></p>
+        </footer>
+    </section>
+
+    <section class="story-choice-modal" id="storyChoiceModal" hidden aria-modal="true" role="dialog" aria-labelledby="storyChoiceTitle">
+        <div class="story-choice-backdrop" data-story-choice-cancel></div>
+        <div class="story-choice-panel">
+            <div class="story-choice-head">
+                <div>
+                    <p id="storyChoiceKicker">选择故事</p>
+                    <h3 id="storyChoiceTitle">加入到哪一本故事？</h3>
+                </div>
+                <button class="story-choice-close" type="button" data-story-choice-cancel aria-label="关闭">×</button>
+            </div>
+            <div class="story-choice-list" id="storyChoiceList"></div>
+            <div class="story-choice-actions">
+                <button class="story-choice-create" id="storyChoiceCreateBtn" type="button">新建故事</button>
+                <button class="story-choice-cancel" type="button" data-story-choice-cancel>取消</button>
+            </div>
+        </div>
+    </section>
 
     <div class="lightbox" id="lightbox">
         <span class="close">&times;</span>
@@ -300,7 +437,7 @@
             </div>
 
             <!-- 编辑切换按钮 -->
-            <button class="edit-toggle-btn" id="editToggleBtn">✏️ 编辑图片</button>
+            <button class="edit-toggle-btn" id="editToggleBtn">编辑图片</button>
 
             <!-- 滤镜工具栏 -->
             <div class="filter-bar" id="filterBar">
@@ -315,7 +452,7 @@
 
             <!-- 图片编辑工具栏 -->
             <div class="edit-bar" id="editBar">
-                <div class="edit-bar-title">✏️ 图片调整</div>
+                <div class="edit-bar-title">图片调整</div>
                 <div class="edit-sliders">
                     <label>亮度 <input type="range" id="editBrightness" min="50" max="200" value="100"><span id="brightnessVal">100%</span></label>
                     <label>对比度 <input type="range" id="editContrast" min="50" max="200" value="100"><span id="contrastVal">100%</span></label>
@@ -389,18 +526,6 @@
             <div class="nickname-error" id="nicknameError"></div>
             <button id="nicknameConfirmBtn" class="nickname-confirm">进入相册</button>
         </div>
-    </div>
-
-    <!-- 右上角用户信息 -->
-    <div class="user-badge" id="userBadge">
-        <span class="user-avatar" id="userAvatar"></span>
-        <span class="user-name" id="userName"></span>
-        <button class="user-edit-btn" id="userEditBtn" title="修改昵称" aria-label="修改昵称">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-                <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17z"/>
-                <path d="M13.5 7.5l3 3"/>
-            </svg>
-        </button>
     </div>
 
     <script type="module" src="js/main.js"></script>

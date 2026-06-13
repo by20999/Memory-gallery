@@ -11,13 +11,17 @@ function renderSystemHealth(data) {
 
     const issueCount = countIssues(data.issues);
     const duplicateCount = data.counts?.duplicateGroups || 0;
-    const statusText = issueCount === 0 && duplicateCount === 0 ? '状态正常' : '需要查看';
-    const statusTone = issueCount === 0 && duplicateCount === 0 ? 'good' : 'warn';
+    const isHealthy = issueCount === 0 && duplicateCount === 0;
+    const statusTone = isHealthy ? 'good' : 'warn';
+    const issueText = issueCount === 0 ? '没有发现丢图或孤儿缩略图' : `发现 ${issueCount} 个数据问题`;
 
     dom.systemStatusBody.innerHTML = `
         <div class="system-status-summary ${statusTone}">
-            <strong>${statusText}</strong>
-            <span>${issueCount === 0 ? '没有发现丢图或孤儿缩略图' : `发现 ${issueCount} 个数据问题`}</span>
+            <div>
+                <strong>${isHealthy ? '状态正常' : '需要查看'}</strong>
+                <span>${issueText}</span>
+            </div>
+            <em>${duplicateCount === 0 ? '没有重复组' : `${duplicateCount} 组重复照片`}</em>
         </div>
         <div class="system-metrics">
             <div><strong>${data.counts?.photos || 0}</strong><span>照片</span></div>

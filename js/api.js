@@ -262,20 +262,29 @@ export function uploadPhotos(formData, onProgress) {
             }
         };
         xhr.onload = () => {
+            const createUploadError = (data, fallbackMessage = '上传失败') => {
+                const duplicates = Array.isArray(data?.duplicates) ? data.duplicates : [];
+                const message = duplicates.length > 0 ? '该图已添加' : (data?.error || fallbackMessage);
+                const error = new Error(message);
+                error.status = xhr.status;
+                error.duplicates = duplicates;
+                return error;
+            };
+
             try {
                 const data = xhr.responseText ? JSON.parse(xhr.responseText) : null;
                 if (xhr.status >= 200 && xhr.status < 300) {
                     resolve(data);
                 } else {
                     if (xhr.status === 403) cacheAdminPassword('');
-                    reject(new Error(data?.error || '上传失败'));
+                    reject(createUploadError(data));
                 }
             } catch {
                 if (xhr.status >= 200 && xhr.status < 300) {
                     resolve(null);
                 } else {
                     if (xhr.status === 403) cacheAdminPassword('');
-                    reject(new Error('上传失败'));
+                    reject(createUploadError(null));
                 }
             }
         };

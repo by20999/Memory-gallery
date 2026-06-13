@@ -124,7 +124,7 @@ async function handleSelectedFiles(fileList, onLoadPhotos) {
         dom.tagsInput.value = '';
         if (dom.captionTemplateSelect) dom.captionTemplateSelect.value = '';
         const duplicateCount = Array.isArray(result?.duplicates) ? result.duplicates.length : 0;
-        const duplicateText = duplicateCount > 0 ? `，已跳过 ${duplicateCount} 张重复照片` : '';
+        const duplicateText = duplicateCount > 0 ? `，该图已添加，已跳过 ${duplicateCount} 张重复图片` : '';
         showStatusNotice(`\u5df2\u4e0a\u4f20 ${result?.photos?.length || files.length} \u5f20\u7167\u7247${duplicateText}\uff0c\u53ef\u4ee5\u7ee7\u7eed\u8865\u5145\u6545\u4e8b\u6216\u6807\u7b7e\u3002`, { tone: 'success' });
         dom.gallery.scrollIntoView({ behavior: 'smooth', block: 'start' });
         setUploadHint('\u4e0a\u4f20\u5b8c\u6210\uff0c\u53ef\u4ee5\u7ee7\u7eed\u62d6\u62fd\u6216\u7ee7\u7eed\u9009\u62e9\u7167\u7247\u3002', true);
@@ -137,10 +137,13 @@ async function handleSelectedFiles(fileList, onLoadPhotos) {
         console.error('\u4e0a\u4f20\u5931\u8d25:', error);
         clearLocalUploadPreviews(previews.map((photo) => photo.id));
         revokePreviewUrls(previews);
-        dom.uploadProgressText.textContent = '\u4e0a\u4f20\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5';
-        dom.uploadProgressBar.style.background = '#ff4757';
-        showStatusNotice(error.message || '\u4e0a\u4f20\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5', { tone: 'error' });
-        setUploadHint('\u4e0a\u4f20\u5931\u8d25\u4e86\uff0c\u91cd\u65b0\u62d6\u8fdb\u6765\u6216\u91cd\u65b0\u9009\u62e9\u6587\u4ef6\u5373\u53ef\u3002', true);
+        const isDuplicateUpload = error.status === 409 || (Array.isArray(error.duplicates) && error.duplicates.length > 0);
+        dom.uploadProgressText.textContent = isDuplicateUpload ? '\u8be5\u56fe\u5df2\u6dfb\u52a0' : '\u4e0a\u4f20\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5';
+        dom.uploadProgressBar.style.background = isDuplicateUpload ? '' : '#ff4757';
+        showStatusNotice(isDuplicateUpload ? '该图已添加' : (error.message || '\u4e0a\u4f20\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5'), { tone: 'error' });
+        setUploadHint(isDuplicateUpload
+            ? '\u8be5\u56fe\u5df2\u6dfb\u52a0\uff0c\u4e3a\u4e86\u8282\u7701\u7a7a\u95f4\u5df2\u81ea\u52a8\u8df3\u8fc7\u3002'
+            : '\u4e0a\u4f20\u5931\u8d25\u4e86\uff0c\u91cd\u65b0\u62d6\u8fdb\u6765\u6216\u91cd\u65b0\u9009\u62e9\u6587\u4ef6\u5373\u53ef\u3002', true);
         setTimeout(() => {
             dom.uploadProgressWrap.classList.remove('visible');
             dom.uploadProgressBar.style.width = '0%';

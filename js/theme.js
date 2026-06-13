@@ -8,6 +8,7 @@ const THEME_PACKAGE_KEY = 'album_theme_package';
 const THEME_PACKAGES = {
     cream: {
         label: '奶油相册',
+        copy: '柔软的奶油色适合收纳亲友、散步、咖啡和那些被阳光照到的瞬间。',
         gradient: 'linear-gradient(135deg, #fff8ee 0%, #ffe7d1 52%, #f7d7c2 100%)',
         accent: '#d47c5d',
         accentHover: '#bf6948',
@@ -17,6 +18,7 @@ const THEME_PACKAGES = {
     },
     film: {
         label: '胶片相册',
+        copy: '胶片色会让旅行、街灯、聚会和晚风多一点旧时光的颗粒感。',
         gradient: 'linear-gradient(145deg, #5d5047 0%, #9a7a5c 42%, #d6be9d 100%)',
         accent: '#5a3f2c',
         accentHover: '#4b3425',
@@ -26,6 +28,7 @@ const THEME_PACKAGES = {
     },
     summer: {
         label: '夏日相册',
+        copy: '蓝色海风吹过的片段，会在这里慢慢变成自己的夏日档案。',
         gradient: 'linear-gradient(135deg, #fef7d7 0%, #c9f2ee 42%, #8fd5ff 100%)',
         accent: '#0f9fb7',
         accentHover: '#0b8398',
@@ -77,10 +80,22 @@ function syncActivePreset(gradient) {
     });
 }
 
+function notifyThemeTextChanged() {
+    window.dispatchEvent(new CustomEvent('album-theme-text-change'));
+}
+
+function updateHeaderCopyForPackage(packageKey, fallbackCopy = '') {
+    const themePackage = THEME_PACKAGES[packageKey];
+    dom.headerKicker.textContent = '';
+    dom.headerDescription.textContent = themePackage?.copy || fallbackCopy || '换一种背景，就像给同一段回忆换上一层新的光。';
+    notifyThemeTextChanged();
+}
+
 function applyGradient(gradient, persist = true) {
     clearPackageStyles();
     document.documentElement.style.setProperty('--bg-gradient', gradient);
     document.documentElement.setAttribute('data-theme-package', 'custom');
+    updateHeaderCopyForPackage('custom', '当前主题由你亲手调色，这本相册也会跟着长出独一份的气质。');
     if (persist) {
         localStorage.setItem(GRADIENT_KEY, gradient);
         localStorage.setItem(THEME_MODE_KEY, 'manual');
@@ -105,6 +120,7 @@ function applyThemePackage(packageKey, options = {}) {
     root.style.setProperty('--theme-body-glow', themePackage.bodyGlow);
     localStorage.removeItem(GRADIENT_KEY);
     syncActivePreset('');
+    updateHeaderCopyForPackage(packageKey);
 
     if (persist) {
         localStorage.setItem(THEME_MODE_KEY, mode);
@@ -121,8 +137,9 @@ function refreshFestivalHeader() {
     dom.recommendThemeCopy.textContent = packageLabel;
     dom.recommendThemeBtn.title = `切换到${packageLabel}`;
     dom.recommendThemeBtn.dataset.package = festival.packageKey;
-    dom.headerKicker.textContent = `${festival.name} · 把寻常日子装订成回忆册`;
+    dom.headerKicker.textContent = '';
     dom.headerDescription.textContent = festival.copy;
+    notifyThemeTextChanged();
 }
 
 export function initTheme() {
