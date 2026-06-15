@@ -33,6 +33,14 @@ function normalizeStoryContent(value) {
     return typeof value === 'string' ? value.slice(0, 12000) : '';
 }
 
+function normalizeShowcaseSubtitle(value) {
+    return typeof value === 'string' ? value.trim().slice(0, 36) : '';
+}
+
+function normalizeShowcaseFooter(value) {
+    return typeof value === 'string' ? value.trim().slice(0, 96) : '';
+}
+
 function buildCurveOffset(index) {
     const preset = [0.18, -0.22, 0.3, -0.12, 0.24, -0.28, 0.08, -0.18];
     return preset[index % preset.length];
@@ -154,6 +162,8 @@ function createStoriesRouter() {
             name: storyName,
             description: '',
             content: '',
+            showcaseSubtitle: '',
+            showcaseFooter: '',
             backgroundPhotoId: '',
             backgroundOpacity: 0.18,
             createdAt: now,
@@ -178,10 +188,12 @@ function createStoriesRouter() {
         const hasName = Object.prototype.hasOwnProperty.call(req.body || {}, 'name');
         const hasDescription = Object.prototype.hasOwnProperty.call(req.body || {}, 'description');
         const hasContent = Object.prototype.hasOwnProperty.call(req.body || {}, 'content');
+        const hasShowcaseSubtitle = Object.prototype.hasOwnProperty.call(req.body || {}, 'showcaseSubtitle');
+        const hasShowcaseFooter = Object.prototype.hasOwnProperty.call(req.body || {}, 'showcaseFooter');
         const hasBackgroundPhotoId = Object.prototype.hasOwnProperty.call(req.body || {}, 'backgroundPhotoId');
         const hasBackgroundOpacity = Object.prototype.hasOwnProperty.call(req.body || {}, 'backgroundOpacity');
 
-        if (!hasName && !hasDescription && !hasContent && !hasBackgroundPhotoId && !hasBackgroundOpacity) {
+        if (!hasName && !hasDescription && !hasContent && !hasShowcaseSubtitle && !hasShowcaseFooter && !hasBackgroundPhotoId && !hasBackgroundOpacity) {
             return res.status(400).json({ error: '没有可更新的内容' });
         }
 
@@ -199,6 +211,14 @@ function createStoriesRouter() {
 
         if (hasContent) {
             story.content = normalizeStoryContent(req.body.content);
+        }
+
+        if (hasShowcaseSubtitle) {
+            story.showcaseSubtitle = normalizeShowcaseSubtitle(req.body.showcaseSubtitle);
+        }
+
+        if (hasShowcaseFooter) {
+            story.showcaseFooter = normalizeShowcaseFooter(req.body.showcaseFooter);
         }
 
         if (hasBackgroundPhotoId) {

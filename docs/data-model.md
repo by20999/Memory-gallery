@@ -101,6 +101,8 @@ story-data.json
       "name": "一次旅行",
       "description": "短描述",
       "content": "长文本内容",
+      "showcaseSubtitle": "全屏标题下方短文案",
+      "showcaseFooter": "全屏底部寄语",
       "createdAt": "2026-06-09T00:00:00.000Z",
       "updatedAt": "2026-06-09T00:00:00.000Z",
       "items": [
@@ -148,6 +150,7 @@ story-data.json
 
 - `album_nickname`：昵称，保存在 `localStorage`。
 - `album_avatar_image`：头像图片，前端裁剪压缩后的 data URL，保存在 `localStorage`。
+- `album_story_showcase_text_layout_<storyId>`：故事全屏展示中标题下方文案栏与底部文案栏的位置偏移，保存在当前浏览器 `localStorage`，不影响 `story-data.json`。
 
 这些字段不写入 `photo-data.json`、`group-data.json` 或 `story-data.json`，也不会上传服务器。清理浏览器数据、换设备或换浏览器后需要重新设置。
 ## 2026-06-12 补充：故事背景字段
@@ -162,5 +165,20 @@ story-data.json
 ```
 
 - `backgroundPhotoId`：引用 `uploads/` 中已存在的相册图片文件名；空字符串表示不使用相册背景。
-- `backgroundOpacity`：故事背景透明度，规范化范围为 `0` 到 `0.55`，默认 `0.18`，只用于普通故事模式和全屏回忆剧场的氛围背景。
+- `backgroundOpacity`：故事背景透明度，规范化范围为 `0` 到 `1`，默认 `0.18`，用于普通故事模式和全屏回忆剧场；全屏展示会尽量保留背景图片原始色彩与内容。
 - 本地上传的故事背景图不写入 `story-data.json`，仅保存在当前浏览器 `localStorage`，键名为 `album_story_background_<storyId>`。
+
+## 2026-06-15 补充：全屏展示短文案字段
+
+`story-data.json` 的每个故事对象新增两个全屏展示专用短文案字段：
+
+```json
+{
+  "showcaseSubtitle": "我们的青春、梦想、爱与感动",
+  "showcaseFooter": "感谢这些年，我们一起走过的每一段"
+}
+```
+
+- `showcaseSubtitle`：全屏展示标题下方短文案，最长 36 个字符。
+- `showcaseFooter`：全屏展示底部寄语，最长 96 个字符。
+- `content` 继续作为普通故事页“故事叙述”的长文本，不再承担全屏底部寄语用途。

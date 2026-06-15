@@ -30,6 +30,10 @@ app.use('/js', express.static(path.join(projectRoot, 'js'), {
     etag: true,
     maxAge: 0
 }));
+app.use('/assets', express.static(path.join(projectRoot, 'assets'), {
+    etag: true,
+    maxAge: 0
+}));
 app.use('/uploads', express.static(uploadDir, {
     etag: true,
     fallthrough: false,

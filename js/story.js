@@ -1,17 +1,18 @@
 ﻿import { dom } from './dom.js';
-import { state, setStories, getActiveStory, replaceStoryInStore, removeStoryFromStore } from './state.js';
+import { state, setStories, getActiveStory, replaceStoryInStore, removeStoryFromStore, updatePhotoInStore } from './state.js';
 import {
     addStoryItemsRequest,
     createStoryRequest,
     deleteStoryItemRequest,
     deleteStoryRequest,
     fetchStories,
+    updatePhotoDetails,
     updateStoryItemsLayoutRequest,
     updateStoryRequest
 } from './api.js';
 import { showStatusNotice } from './feedback.js';
 import { refreshEnhancedSelects } from './select.js';
-import { escapeHtml, formatUploadDate, formatUploadMonth } from './utils.js';
+import { escapeHtml, formatUploadDate, formatUploadMonth, normalizeTags } from './utils.js';
 
 const STORY_TIMELINE = {
     step: 280,
@@ -27,31 +28,56 @@ const STORY_TIMELINE = {
 };
 
 const STORY_BACKGROUND_STORAGE_PREFIX = 'album_story_background_';
+const SHOWCASE_TEXT_LAYOUT_STORAGE_PREFIX = 'album_story_showcase_text_layout_';
 const SHOWCASE_TIMELINE = {
-    step: 330,
-    height: 680,
-    padding: 230,
-    midY: 330,
-    waveAmplitude: 60,
-    autoplayTail: 820
+    step: 304,
+    height: 780,
+    padding: 250,
+    midY: 405,
+    waveAmplitude: 82,
+    autoplayTail: 980
 };
+
+const SHOWCASE_AUTOPLAY_SPEED_MIN = 50;
+const SHOWCASE_AUTOPLAY_SPEED_MAX = 72;
+const SHOWCASE_AUTOPLAY_SPEED_DEFAULT = 54;
+const SHOWCASE_SUBTITLE_LIMIT = 36;
+const SHOWCASE_FOOTER_LIMIT = 96;
 
 let autosaveTimer = null;
 let viewportDragState = null;
 let nodeDragState = null;
 let showcaseDragState = null;
+let showcaseTextDragState = null;
 let showcasePanY = 0;
+let showcaseAutoplaySpeed = SHOWCASE_AUTOPLAY_SPEED_DEFAULT;
 let showcaseAutoplayFrame = 0;
 let showcaseAutoplayLastTime = 0;
 let storyChoiceState = null;
+const showcaseTextAutosaveTimers = new Map();
 
 const SHOWCASE_PAN_Y_LIMIT = 220;
-const SHOWCASE_AUTOPLAY_SPEED = 56;
-
 function clampShowcasePanY(value) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return 0;
     return Math.max(-SHOWCASE_PAN_Y_LIMIT, Math.min(SHOWCASE_PAN_Y_LIMIT, numeric));
+}
+
+function clampShowcaseAutoplaySpeed(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return SHOWCASE_AUTOPLAY_SPEED_DEFAULT;
+    return Math.max(SHOWCASE_AUTOPLAY_SPEED_MIN, Math.min(SHOWCASE_AUTOPLAY_SPEED_MAX, numeric));
+}
+
+function updateShowcaseSpeedControl(value = showcaseAutoplaySpeed) {
+    showcaseAutoplaySpeed = clampShowcaseAutoplaySpeed(value);
+    if (dom.storyShowcaseSpeedInput) dom.storyShowcaseSpeedInput.value = String(showcaseAutoplaySpeed);
+    if (dom.storyShowcaseSpeedValue) dom.storyShowcaseSpeedValue.textContent = String(Math.round(showcaseAutoplaySpeed));
+    if (isShowcaseAutoplaying()) {
+        window.cancelAnimationFrame(showcaseAutoplayFrame);
+        showcaseAutoplayLastTime = performance.now();
+        showcaseAutoplayFrame = window.requestAnimationFrame(stepShowcaseAutoplay);
+    }
 }
 
 function applyShowcasePanY(value) {
@@ -70,6 +96,10 @@ function updateShowcaseAutoplayButton() {
     const playing = isShowcaseAutoplaying();
     dom.storyShowcaseAutoplayBtn.textContent = playing ? '停止播放' : '自动播放';
     dom.storyShowcaseAutoplayBtn.setAttribute('aria-pressed', playing ? 'true' : 'false');
+}
+
+function getShowcaseAutoplayPixelsPerSecond() {
+    return showcaseAutoplaySpeed;
 }
 
 function stopShowcaseAutoplay() {
@@ -98,7 +128,8 @@ function stepShowcaseAutoplay(timestamp) {
         return;
     }
 
-    viewport.scrollLeft = Math.min(maxScrollLeft, viewport.scrollLeft + (SHOWCASE_AUTOPLAY_SPEED * elapsed) / 1000);
+    const pixelsPerSecond = getShowcaseAutoplayPixelsPerSecond();
+    viewport.scrollLeft = Math.min(maxScrollLeft, viewport.scrollLeft + (pixelsPerSecond * elapsed) / 1000);
     showcaseAutoplayFrame = window.requestAnimationFrame(stepShowcaseAutoplay);
 }
 
@@ -226,7 +257,7 @@ function getTimelineWidth(itemCount, viewportWidth = dom.storyFlowViewport?.clie
 
 function getPreviewBackgroundOpacity(story) {
     const savedOpacity = getStoryBackgroundOpacity(story);
-    return Math.min(0.42, Math.max(0.12, savedOpacity || 0.18));
+    return savedOpacity;
 }
 
 function getBasePointForIndex(index) {
@@ -293,7 +324,7 @@ function getStoryPreviewPhotoSrc(photo) {
     return photo?.thumbSrc || photo?.src || '';
 }
 
-function getPhotoDescription(photo, fallback = '这张图片还没有写描述，可以在主相册里继续补充。') {
+function getPhotoDescription(photo, fallback = '') {
     const caption = String(photo?.caption || '').trim();
     return caption || fallback;
 }
@@ -301,6 +332,35 @@ function getPhotoDescription(photo, fallback = '这张图片还没有写描述�
 function getStoryItemDescription(item, fallback) {
     const note = String(item?.note || '').trim();
     return getPhotoDescription(item?.photo || {}, note || fallback);
+}
+
+function getShowcaseDateValue(photo) {
+    return photo?.eventDate || photo?.uploadTime || '';
+}
+
+function getShowcaseYear(photo, index) {
+    const date = new Date(getShowcaseDateValue(photo));
+    if (!Number.isNaN(date.getTime())) return String(date.getFullYear());
+    return '未记录';
+}
+
+function getShowcaseTitle(item, index) {
+    const photo = item?.photo || {};
+    const eventName = String(photo.eventName || '').trim();
+    const note = String(item?.note || '').trim();
+    const caption = String(photo.caption || '').trim();
+    const source = eventName || note || caption;
+    if (source) return source.replace(/[，。！？,.!?].*$/, '').slice(0, 12);
+    return '';
+}
+
+function getShowcaseLine(item, index) {
+    const photo = item?.photo || {};
+    const note = String(item?.note || '').trim();
+    const caption = String(photo.caption || '').trim();
+    const source = note || caption;
+    if (source) return source;
+    return '';
 }
 
 function getStoryPhotoById(photoId) {
@@ -344,10 +404,89 @@ function writeLocalStoryBackground(storyId, value) {
     }
 }
 
+function getShowcaseTextLayoutKey(storyId) {
+    return `${SHOWCASE_TEXT_LAYOUT_STORAGE_PREFIX}${storyId}`;
+}
+
+function readShowcaseTextLayout(storyId) {
+    if (!storyId) return {};
+    try {
+        const raw = window.localStorage.getItem(getShowcaseTextLayoutKey(storyId));
+        const parsed = raw ? JSON.parse(raw) : {};
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+        return {};
+    }
+}
+
+function writeShowcaseTextLayout(storyId, layout) {
+    if (!storyId) return;
+    try {
+        window.localStorage.setItem(getShowcaseTextLayoutKey(storyId), JSON.stringify(layout || {}));
+    } catch (error) {
+        console.error('保存全屏文案位置失败:', error);
+    }
+}
+
+function getShowcaseTextBar(field) {
+    return dom.storyShowcase?.querySelector(`[data-showcase-text-bar="${field}"]`) || null;
+}
+
+function getShowcaseTextLimit(field) {
+    return field === 'showcaseFooter' ? SHOWCASE_FOOTER_LIMIT : SHOWCASE_SUBTITLE_LIMIT;
+}
+
+function clampShowcaseText(field, value) {
+    return String(value || '').trim().slice(0, getShowcaseTextLimit(field));
+}
+
+function updateShowcaseCopyCounter(field, value) {
+    const countElement = field === 'showcaseFooter'
+        ? dom.storyShowcaseFooterCount
+        : dom.storyShowcaseSubtitleCount;
+    if (!countElement) return;
+    const limit = getShowcaseTextLimit(field);
+    countElement.textContent = `${String(value || '').length}/${limit}`;
+}
+
+function setShowcaseCopyControl(field, value) {
+    const input = field === 'showcaseFooter'
+        ? dom.storyShowcaseFooterInput
+        : dom.storyShowcaseSubtitleInput;
+    const nextValue = clampShowcaseText(field, value);
+    if (input && input.value !== nextValue) input.value = nextValue;
+    updateShowcaseCopyCounter(field, nextValue);
+}
+
+function applyShowcaseTextLayout(story) {
+    const layout = readShowcaseTextLayout(story?.id);
+    ['showcaseSubtitle', 'showcaseFooter'].forEach((field) => {
+        const bar = getShowcaseTextBar(field);
+        const point = layout[field] || {};
+        const x = Number.isFinite(Number(point.x)) ? Number(point.x) : 0;
+        const y = Number.isFinite(Number(point.y)) ? Number(point.y) : 0;
+        bar?.style.setProperty('--showcase-text-x', `${x}px`);
+        bar?.style.setProperty('--showcase-text-y', `${y}px`);
+    });
+}
+
+function getEditableText(element) {
+    return String(element?.textContent || '').replace(/\u00a0/g, ' ').trim();
+}
+
+function setEditableText(element, value) {
+    if (!element) return;
+    const nextValue = String(value || '').trim();
+    if (getEditableText(element) !== nextValue) {
+        element.textContent = nextValue;
+    }
+    element.classList.toggle('is-empty', !nextValue);
+}
+
 function clampBackgroundOpacity(value) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return 0.18;
-    return Math.max(0, Math.min(0.55, Math.round(numeric * 100) / 100));
+    return Math.max(0, Math.min(1, Math.round(numeric * 100) / 100));
 }
 
 function getStoryBackgroundOpacity(story) {
@@ -461,9 +600,10 @@ function buildStoryNode(item, point, index) {
             </div>
             <div class="story-node-card">
                 <button class="story-node-remove" type="button" data-story-remove-item="${escapeHtml(item.id)}" aria-label="移出故事">×</button>
-                <div class="story-node-media">
+                <button class="story-node-media story-node-media-btn" type="button" data-story-edit-photo="${escapeHtml(photo.id || item.photoId || '')}" title="编辑这张图片的描述">
                     <img src="${escapeHtml(getStoryDisplayPhotoSrc(photo))}" alt="${escapeHtml(imageAlt)}" loading="lazy">
-                </div>
+                    <span>编辑描述</span>
+                </button>
                 <div class="story-node-body">
                     <div class="story-node-date">${escapeHtml(formatUploadDate(photo.uploadTime) || '未记录日期')}</div>
                     ${descriptionMarkup}
@@ -476,6 +616,76 @@ function buildStoryNode(item, point, index) {
             </div>
         </article>
     `;
+}
+
+async function promptEditStoryPhotoDetails(photoId) {
+    const story = getActiveStory();
+    const item = story?.items?.find((entry) => entry.photo?.id === photoId || entry.photoId === photoId);
+    const photo = item?.photo || state.photos.find((entry) => entry.id === photoId);
+    if (!story || !item || !photo) return;
+
+    const rawCaption = window.prompt(
+        photo.caption ? '修改这张照片的描述，留空可以清除。' : '给这张照片补一句描述，留空表示暂时不写。',
+        photo.caption || ''
+    );
+    if (rawCaption === null) return;
+
+    const rawEventDate = window.prompt(
+        '补充事件日期，可写 2026-06-12、2026/6/12 或留空。',
+        photo.eventDate || ''
+    );
+    if (rawEventDate === null) return;
+
+    const rawEventName = window.prompt(
+        '补充事件名，例如：毕业、旅行、生日、live；留空可以清除。',
+        photo.eventName || ''
+    );
+    if (rawEventName === null) return;
+
+    const rawTags = window.prompt(
+        '补充标签，多个标签可用逗号、顿号或空格分开；留空可清除。',
+        (photo.tags || []).join('，')
+    );
+    if (rawTags === null) return;
+
+    const patch = {
+        caption: rawCaption.trim().slice(0, 80),
+        eventDate: rawEventDate.trim(),
+        eventName: rawEventName.trim().slice(0, 40),
+        tags: normalizeTags(rawTags).slice(0, 12)
+    };
+
+    const sameCaption = patch.caption === (photo.caption || '');
+    const sameEventDate = patch.eventDate === (photo.eventDate || '');
+    const sameEventName = patch.eventName === (photo.eventName || '');
+    const sameTags = JSON.stringify(patch.tags) === JSON.stringify(normalizeTags(photo.tags));
+    if (sameCaption && sameEventDate && sameEventName && sameTags) {
+        showStatusNotice('图片信息没有变化', { tone: 'info', duration: 1600 });
+        return;
+    }
+
+    try {
+        const result = await updatePhotoDetails(photo.id, patch);
+        const nextPhoto = {
+            ...photo,
+            caption: result.caption || '',
+            tags: normalizeTags(result.tags),
+            eventDate: result.eventDate || '',
+            eventName: result.eventName || ''
+        };
+        updatePhotoInStore(photo.id, nextPhoto);
+        updateActiveStory({
+            ...story,
+            items: story.items.map((entry) => (
+                entry.id === item.id ? { ...entry, photo: { ...entry.photo, ...nextPhoto } } : entry
+            ))
+        });
+        renderStoryView();
+        showStatusNotice('这张图片的描述已保存', { tone: 'success', duration: 1800 });
+    } catch (error) {
+        console.error('保存故事图片信息失败:', error);
+        showStatusNotice(error.message || '保存图片信息失败，请稍后重试', { tone: 'error' });
+    }
 }
 
 function updateStoryPathPreview(points) {
@@ -590,6 +800,8 @@ function renderStoryView() {
     if (dom.storyContentInput && dom.storyContentInput.value !== activeStory.content) {
         dom.storyContentInput.value = activeStory.content || '';
     }
+    setShowcaseCopyControl('showcaseSubtitle', activeStory.showcaseSubtitle || '');
+    setShowcaseCopyControl('showcaseFooter', activeStory.showcaseFooter || '');
     applyStoryBackground(activeStory);
     updateStoryBackgroundControls(activeStory);
     setEditorStatus('故事文案会自动保存');
@@ -625,6 +837,34 @@ async function persistStoryContent(storyId, content) {
         setEditorStatus('保存失败，请稍后重试');
         showStatusNotice(error.message || '保存故事文案失败', { tone: 'error' });
     }
+}
+
+async function persistShowcaseText(storyId, field, value) {
+    const patch = {
+        [field]: clampShowcaseText(field, value)
+    };
+    try {
+        const data = await updateStoryRequest(storyId, patch);
+        updateActiveStory(data.story);
+        setShowcaseCopyControl(field, data.story[field] || '');
+        showStatusNotice('展示文案已保存', { tone: 'success', duration: 1200 });
+    } catch (error) {
+        console.error('保存展示文案失败:', error);
+        showStatusNotice(error.message || '保存展示文案失败，请稍后重试', { tone: 'error' });
+    }
+}
+
+function queueShowcaseTextSave(field, value) {
+    const story = getActiveStory();
+    if (!story) return;
+    const timerKey = field;
+    if (showcaseTextAutosaveTimers.has(timerKey)) {
+        window.clearTimeout(showcaseTextAutosaveTimers.get(timerKey));
+    }
+    showcaseTextAutosaveTimers.set(timerKey, window.setTimeout(() => {
+        showcaseTextAutosaveTimers.delete(timerKey);
+        persistShowcaseText(story.id, field, value);
+    }, 650));
 }
 
 async function persistStoryAppearance(storyId, patch) {
@@ -780,8 +1020,8 @@ function getShowcasePoint(index) {
     return {
         x: SHOWCASE_TIMELINE.padding + index * SHOWCASE_TIMELINE.step,
         y: SHOWCASE_TIMELINE.midY
-            + Math.sin(index * 1.08) * SHOWCASE_TIMELINE.waveAmplitude
-            + Math.cos(index * 0.58) * 22
+            + Math.sin(index * 0.92 - 0.45) * SHOWCASE_TIMELINE.waveAmplitude
+            + Math.cos(index * 0.47 + 0.2) * 32
     };
 }
 
@@ -790,34 +1030,65 @@ function buildShowcasePath(itemCount) {
     return buildStoryPath(points);
 }
 
+function buildShowcaseNodeMarkers(itemCount) {
+    return Array.from({ length: itemCount }, (_, index) => {
+        const point = getShowcasePoint(index);
+        return `
+            <g class="story-showcase-node-marker" style="--marker-delay:${index * 0.42}s">
+                <circle class="story-showcase-node-halo" cx="${point.x}" cy="${point.y}" r="46"></circle>
+                <circle class="story-showcase-node-aura" cx="${point.x}" cy="${point.y}" r="31"></circle>
+                <circle class="story-showcase-node-ring" cx="${point.x}" cy="${point.y}" r="16"></circle>
+                <circle class="story-showcase-node-core" cx="${point.x}" cy="${point.y}" r="7"></circle>
+                <path class="story-showcase-node-spark" d="M${point.x - 30} ${point.y}h60M${point.x} ${point.y - 30}v60"></path>
+                <path class="story-showcase-node-glint" d="M${point.x - 13} ${point.y - 13}l26 26M${point.x + 13} ${point.y - 13}l-26 26"></path>
+            </g>
+        `;
+    }).join('');
+}
+
 function buildShowcaseFrame(item, index) {
     const photo = item.photo || {};
     const point = getShowcasePoint(index);
     const lane = [
-        { className: 'lane-high caption-above', captionAbove: true, offset: -140, tilt: -1.8 },
-        { className: 'lane-low caption-below', captionAbove: false, offset: 155, tilt: 1.4 },
-        { className: 'lane-soft-high caption-above', captionAbove: true, offset: -138, tilt: 0.8 },
-        { className: 'lane-soft-low caption-below', captionAbove: false, offset: 155, tilt: -1.2 },
-        { className: 'lane-high caption-above', captionAbove: true, offset: -132, tilt: 1.7 },
-        { className: 'lane-soft-low caption-below', captionAbove: false, offset: 150, tilt: -0.7 }
+        { className: 'lane-high caption-above', captionAbove: true, offset: -148, tilt: -2.2 },
+        { className: 'lane-low caption-below', captionAbove: false, offset: 148, tilt: 1.6 },
+        { className: 'lane-soft-high caption-above', captionAbove: true, offset: -128, tilt: 0.9 },
+        { className: 'lane-soft-low caption-below', captionAbove: false, offset: 132, tilt: -1.4 },
+        { className: 'lane-high caption-above', captionAbove: true, offset: -142, tilt: 1.9 },
+        { className: 'lane-soft-low caption-below', captionAbove: false, offset: 138, tilt: -0.8 }
     ][index % 6];
     const placement = lane.className;
     const tilt = lane.tilt;
     const itemY = point.y + lane.offset;
-    const caption = String(photo.caption || item.note || '').trim();
-    const imageAlt = caption || formatUploadDate(photo.uploadTime) || `故事片段 ${index + 1}`;
-    const captionMarkup = caption
-        ? `<div class="story-showcase-caption"><span>${escapeHtml(caption)}</span></div>`
-        : '';
+    const year = getShowcaseYear(photo, index);
+    const title = getShowcaseTitle(item, index);
+    const line = getShowcaseLine(item, index);
+    const imageAlt = line || title || formatUploadDate(photo.uploadTime) || `故事片段 ${index + 1}`;
+    const captionMarkup = title || line ? `
+        <div class="story-showcase-caption">
+            ${title ? `<strong>${escapeHtml(title)}</strong>` : ''}
+            ${line ? `<span>${escapeHtml(line)}</span>` : ''}
+        </div>
+    ` : '';
     const captionBefore = lane.captionAbove ? captionMarkup : '';
     const captionAfter = lane.captionAbove ? '' : captionMarkup;
 
     return `
-        <article class="story-showcase-item ${placement}" style="left:${point.x}px; top:${itemY}px; --tilt:${tilt}deg;">
-            <div class="story-showcase-time">${escapeHtml(formatUploadDate(photo.uploadTime) || '未记录时间')}</div>
+        <article class="story-showcase-item ${placement}" style="left:${point.x}px; top:${itemY}px; --tilt:${tilt}deg; --item-delay:${index * 0.1}s;">
+            <div class="story-showcase-time">
+                <span>${escapeHtml(year)}</span>
+            </div>
             ${captionBefore}
             <div class="story-showcase-frame">
-                <img src="${escapeHtml(getStoryDisplayPhotoSrc(photo))}" alt="${escapeHtml(imageAlt)}" loading="lazy">
+                <span class="story-showcase-orbit orbit-one" aria-hidden="true"></span>
+                <span class="story-showcase-orbit orbit-two" aria-hidden="true"></span>
+                <span class="story-showcase-frame-flare" aria-hidden="true"></span>
+                <span class="story-showcase-frame-spark spark-one" aria-hidden="true"></span>
+                <span class="story-showcase-frame-spark spark-two" aria-hidden="true"></span>
+                <span class="story-showcase-frame-spark spark-three" aria-hidden="true"></span>
+                <span class="story-showcase-image-wrap">
+                    <img src="${escapeHtml(getStoryDisplayPhotoSrc(photo))}" alt="${escapeHtml(imageAlt)}" loading="lazy">
+                </span>
             </div>
             ${captionAfter}
         </article>
@@ -830,44 +1101,90 @@ function renderShowcase(story) {
     const width = getShowcaseWidth(items.length);
     const path = buildShowcasePath(items.length);
     const bgSrc = getStoryBackgroundSrc(story);
-    const bgOpacity = Math.min(0.42, Math.max(0.1, getStoryBackgroundOpacity(story) || 0.18));
+    const savedBgOpacity = getStoryBackgroundOpacity(story);
+    const bgOpacity = bgSrc ? savedBgOpacity : 0;
 
-    if (dom.storyShowcaseTitle) dom.storyShowcaseTitle.textContent = story?.name || '图片故事';
+    if (dom.storyShowcaseTitle) {
+        const title = story?.name || '图片故事';
+        dom.storyShowcaseTitle.textContent = title;
+        dom.storyShowcaseTitle.style.setProperty('--showcase-title-length', String(Math.max(6, title.length)));
+    }
     if (dom.storyShowcaseMeta) {
-        dom.storyShowcaseMeta.textContent = items.length
-            ? `${items.length} 个回忆片段 · 拖动查看更早或更晚`
-            : '这本故事还没有图片';
+        setEditableText(dom.storyShowcaseMeta, story?.showcaseSubtitle || '');
     }
     if (dom.storyShowcaseNarration) {
-        const content = String(story?.content || '').trim();
-        dom.storyShowcaseNarration.textContent = content || '把鼠标按在时间流线上轻轻拖动，让照片沿着回忆的方向慢慢出现。';
+        setEditableText(dom.storyShowcaseNarration, story?.showcaseFooter || '');
     }
     if (dom.storyShowcaseBg) {
         dom.storyShowcaseBg.style.backgroundImage = bgSrc ? `url("${bgSrc.replace(/"/g, '\\"')}")` : '';
-        dom.storyShowcaseBg.style.opacity = String(bgSrc ? bgOpacity : 0);
+        dom.storyShowcaseBg.style.setProperty('opacity', String(bgSrc ? bgOpacity : 0), 'important');
     }
+    updateShowcaseSpeedControl();
 
     dom.storyShowcaseTrack.style.width = `${width}px`;
     dom.storyShowcaseTrack.style.setProperty('--showcase-pan-y', `${showcasePanY}px`);
     dom.storyShowcaseTrack.innerHTML = items.length
         ? `
-            <div class="story-showcase-stars" aria-hidden="true"></div>
-            <div class="story-showcase-particles" aria-hidden="true">
-                <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-                <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            <div class="story-showcase-scene-decor" aria-hidden="true">
+                <span class="decor-film film-top"></span>
+                <span class="decor-film film-bottom"></span>
+                <span class="decor-film film-left"></span>
+                <span class="decor-paper paper-left"></span>
+                <span class="decor-paper paper-right"></span>
+                <span class="decor-polaroid polaroid-one"></span>
+                <span class="decor-polaroid polaroid-two"></span>
+                <span class="decor-polaroid polaroid-three"></span>
+                <span class="decor-ribbon ribbon-one"></span>
+                <span class="decor-ribbon ribbon-two"></span>
+                <span class="decor-ribbon ribbon-three"></span>
+                <span class="decor-moon"></span>
             </div>
-            <svg class="story-showcase-line" viewBox="0 0 ${width} ${SHOWCASE_TIMELINE.height}" preserveAspectRatio="none" aria-hidden="true">
-                <defs>
-                    <linearGradient id="storyShowcaseGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stop-color="#ffe9ba"></stop>
-                        <stop offset="42%" stop-color="#ffffff"></stop>
-                        <stop offset="100%" stop-color="#ffb0a0"></stop>
-                    </linearGradient>
-                </defs>
-                <path class="story-showcase-line-glow" d="${path}"></path>
-                <path class="story-showcase-line-core" d="${path}"></path>
-            </svg>
-            ${items.map((item, index) => buildShowcaseFrame(item, index)).join('')}
+            <div class="story-showcase-static-layer" aria-hidden="true">
+                <div class="story-showcase-stars"></div>
+                <div class="story-showcase-particles">
+                    <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    <i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
+                <div class="story-showcase-petals">
+                    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    <i></i><i></i><i></i><i></i>
+                </div>
+            </div>
+            <div class="story-showcase-timeline-layer">
+                <svg class="story-showcase-line" viewBox="0 0 ${width} ${SHOWCASE_TIMELINE.height}" preserveAspectRatio="none" aria-hidden="true">
+                    <defs>
+                        <filter id="storyShowcaseBloom" x="-20%" y="-80%" width="140%" height="260%">
+                            <feGaussianBlur stdDeviation="8" result="blur"></feGaussianBlur>
+                            <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.98 0 1 0 0 0.68 0 0 1 0 0.48 0 0 0 0.9 0" result="warmGlow"></feColorMatrix>
+                            <feMerge>
+                                <feMergeNode in="warmGlow"></feMergeNode>
+                                <feMergeNode in="SourceGraphic"></feMergeNode>
+                            </feMerge>
+                        </filter>
+                        <linearGradient id="storyShowcaseGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#ffe3c1"></stop>
+                            <stop offset="24%" stop-color="#fff8e3"></stop>
+                            <stop offset="50%" stop-color="#ffd0e6"></stop>
+                            <stop offset="76%" stop-color="#fff7d0"></stop>
+                            <stop offset="100%" stop-color="#ffc4b2"></stop>
+                        </linearGradient>
+                        <linearGradient id="storyShowcaseThread" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#ff9fc6" stop-opacity="0"></stop>
+                            <stop offset="35%" stop-color="#ffc8f1" stop-opacity="0.5"></stop>
+                            <stop offset="65%" stop-color="#9bd9ff" stop-opacity="0.45"></stop>
+                            <stop offset="100%" stop-color="#ffe4b8" stop-opacity="0"></stop>
+                        </linearGradient>
+                    </defs>
+                    <path class="story-showcase-line-haze" d="${path}"></path>
+                    <path class="story-showcase-line-glow" d="${path}"></path>
+                    <path class="story-showcase-line-ribbon" d="${path}"></path>
+                    <path class="story-showcase-line-core" d="${path}"></path>
+                    <path class="story-showcase-line-spark" d="${path}"></path>
+                    ${buildShowcaseNodeMarkers(items.length)}
+                </svg>
+                ${items.map((item, index) => buildShowcaseFrame(item, index)).join('')}
+            </div>
         `
         : `
             <div class="story-showcase-empty">
@@ -875,6 +1192,7 @@ function renderShowcase(story) {
                 <span>回到相册，把想讲述的图片加入故事后再打开全屏展示。</span>
             </div>
         `;
+    applyShowcaseTextLayout(story);
 }
 
 async function openStoryShowcase() {
@@ -882,6 +1200,7 @@ async function openStoryShowcase() {
     if (!story || !dom.storyShowcase) return;
     renderShowcase(story);
     dom.storyShowcase.hidden = false;
+    document.documentElement.classList.add('story-showcase-open');
     document.body.classList.add('story-showcase-open');
     stopShowcaseAutoplay();
     window.setTimeout(() => {
@@ -900,6 +1219,7 @@ async function openStoryShowcase() {
 async function closeStoryShowcase() {
     if (!dom.storyShowcase) return;
     dom.storyShowcase.hidden = true;
+    document.documentElement.classList.remove('story-showcase-open');
     document.body.classList.remove('story-showcase-open');
     stopShowcaseAutoplay();
     if (dom.storyShowcaseMenu) dom.storyShowcaseMenu.hidden = true;
@@ -1184,7 +1504,7 @@ function bindShowcaseDragging() {
     if (!dom.storyShowcaseViewport) return;
 
     dom.storyShowcaseViewport.addEventListener('pointerdown', (event) => {
-        if (event.target.closest('button')) return;
+        if (event.target.closest('button, [contenteditable="true"], [data-showcase-text-drag]')) return;
         showcaseDragState = {
             pointerId: event.pointerId,
             startX: event.clientX,
@@ -1220,6 +1540,101 @@ function bindShowcaseDragging() {
         dom.storyShowcaseViewport.classList.remove('dragging');
         showcaseDragState = null;
     });
+}
+
+function bindShowcaseTextEditing() {
+    const fieldById = new Map([
+        ['storyShowcaseMeta', 'showcaseSubtitle'],
+        ['storyShowcaseNarration', 'showcaseFooter']
+    ]);
+
+    fieldById.forEach((field, id) => {
+        const element = document.getElementById(id);
+        if (!element) return;
+
+        element.addEventListener('input', () => {
+            const story = getActiveStory();
+            if (!story) return;
+            const rawValue = getEditableText(element);
+            const value = clampShowcaseText(field, rawValue);
+            if (rawValue !== value) {
+                setEditableText(element, value);
+            }
+            element.classList.toggle('is-empty', !value);
+            updateActiveStory({ ...story, [field]: value });
+            setShowcaseCopyControl(field, value);
+            queueShowcaseTextSave(field, value);
+        });
+
+        element.addEventListener('paste', (event) => {
+            event.preventDefault();
+            const current = getEditableText(element);
+            const text = event.clipboardData?.getData('text/plain') || '';
+            const nextValue = clampShowcaseText(field, `${current}${text}`);
+            setEditableText(element, nextValue);
+            element.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+
+        element.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                element.blur();
+            }
+        });
+    });
+
+    dom.storyShowcase?.addEventListener('pointerdown', (event) => {
+        const handle = event.target.closest('[data-showcase-text-drag]');
+        if (!handle) return;
+        const field = handle.getAttribute('data-showcase-text-drag') || '';
+        const bar = getShowcaseTextBar(field);
+        const story = getActiveStory();
+        if (!bar || !story) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        const layout = readShowcaseTextLayout(story.id);
+        const current = layout[field] || {};
+        showcaseTextDragState = {
+            pointerId: event.pointerId,
+            storyId: story.id,
+            field,
+            bar,
+            startX: event.clientX,
+            startY: event.clientY,
+            originX: Number(current.x) || 0,
+            originY: Number(current.y) || 0
+        };
+        bar.classList.add('is-moving');
+        handle.setPointerCapture(event.pointerId);
+    });
+
+    window.addEventListener('pointermove', (event) => {
+        if (!showcaseTextDragState || showcaseTextDragState.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        const deltaX = event.clientX - showcaseTextDragState.startX;
+        const deltaY = event.clientY - showcaseTextDragState.startY;
+        const nextX = Math.round(showcaseTextDragState.originX + deltaX);
+        const nextY = Math.round(showcaseTextDragState.originY + deltaY);
+        showcaseTextDragState.bar.style.setProperty('--showcase-text-x', `${nextX}px`);
+        showcaseTextDragState.bar.style.setProperty('--showcase-text-y', `${nextY}px`);
+    }, { passive: false });
+
+    const finishTextDrag = (event) => {
+        if (!showcaseTextDragState || showcaseTextDragState.pointerId !== event.pointerId) return;
+        const { storyId, field, bar, startX, startY, originX, originY } = showcaseTextDragState;
+        const layout = readShowcaseTextLayout(storyId);
+        layout[field] = {
+            x: Math.round(originX + event.clientX - startX),
+            y: Math.round(originY + event.clientY - startY)
+        };
+        writeShowcaseTextLayout(storyId, layout);
+        bar.classList.remove('is-moving');
+        showcaseTextDragState = null;
+    };
+
+    window.addEventListener('pointerup', finishTextDrag);
+    window.addEventListener('pointercancel', finishTextDrag);
 }
 
 function readStoryBackgroundFile(file) {
@@ -1420,7 +1835,36 @@ export function initStory() {
         }, 650);
     });
 
+    [
+        ['showcaseSubtitle', dom.storyShowcaseSubtitleInput],
+        ['showcaseFooter', dom.storyShowcaseFooterInput]
+    ].forEach(([field, input]) => {
+        input?.addEventListener('input', () => {
+            const story = getActiveStory();
+            if (!story) return;
+            const value = clampShowcaseText(field, input.value);
+            if (input.value !== value) input.value = value;
+            updateShowcaseCopyCounter(field, value);
+            updateActiveStory({ ...story, [field]: value });
+            if (field === 'showcaseSubtitle') {
+                setEditableText(dom.storyShowcaseMeta, value);
+            } else {
+                setEditableText(dom.storyShowcaseNarration, value);
+            }
+            queueShowcaseTextSave(field, value);
+        });
+    });
+
     dom.storyStage?.addEventListener('click', async (event) => {
+        const editPhotoBtn = event.target.closest('[data-story-edit-photo]');
+        if (editPhotoBtn) {
+            event.preventDefault();
+            event.stopPropagation();
+            const photoId = editPhotoBtn.getAttribute('data-story-edit-photo') || '';
+            if (photoId) await promptEditStoryPhotoDetails(photoId);
+            return;
+        }
+
         const removeBtn = event.target.closest('[data-story-remove-item]');
         if (removeBtn) {
             event.preventDefault();
@@ -1476,6 +1920,10 @@ export function initStory() {
         toggleShowcaseAutoplay();
     });
 
+    dom.storyShowcaseSpeedInput?.addEventListener('input', () => {
+        updateShowcaseSpeedControl(dom.storyShowcaseSpeedInput.value);
+    });
+
     dom.storyShowcaseResetBtn?.addEventListener('click', () => {
         stopShowcaseAutoplay();
         dom.storyShowcaseViewport?.scrollTo({ left: 0, behavior: 'auto' });
@@ -1520,12 +1968,15 @@ export function initStory() {
     document.addEventListener('fullscreenchange', () => {
         if (!document.fullscreenElement && dom.storyShowcase && !dom.storyShowcase.hidden) {
             dom.storyShowcase.hidden = true;
+            document.documentElement.classList.remove('story-showcase-open');
             document.body.classList.remove('story-showcase-open');
+            stopShowcaseAutoplay();
         }
     });
 
     bindViewportDragging();
     bindShowcaseDragging();
+    bindShowcaseTextEditing();
     window.addEventListener('resize', () => {
         if (state.siteView === 'story') {
             renderStoryView();

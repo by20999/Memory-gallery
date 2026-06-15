@@ -46,7 +46,7 @@ function normalizeBackgroundPhotoId(value) {
 function normalizeBackgroundOpacity(value) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return 0.18;
-    return Math.max(0, Math.min(0.55, Math.round(numeric * 100) / 100));
+    return Math.max(0, Math.min(1, Math.round(numeric * 100) / 100));
 }
 
 function normalizeStoryEntry(entry = {}, index = 0) {
@@ -70,6 +70,8 @@ function normalizeStoryEntry(entry = {}, index = 0) {
         name: typeof entry.name === 'string' && entry.name.trim() ? entry.name.trim().slice(0, 40) : `未命名故事 ${index + 1}`,
         description: typeof entry.description === 'string' ? entry.description.trim().slice(0, 120) : '',
         content: typeof entry.content === 'string' ? entry.content.slice(0, 12000) : '',
+        showcaseSubtitle: typeof entry.showcaseSubtitle === 'string' ? entry.showcaseSubtitle.trim().slice(0, 36) : '',
+        showcaseFooter: typeof entry.showcaseFooter === 'string' ? entry.showcaseFooter.trim().slice(0, 96) : '',
         backgroundPhotoId: normalizeBackgroundPhotoId(entry.backgroundPhotoId),
         backgroundOpacity: normalizeBackgroundOpacity(entry.backgroundOpacity),
         createdAt,

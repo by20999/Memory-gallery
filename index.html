@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的相册</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@500;700;900&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -63,8 +66,8 @@
                 </button>
             </div>
             <div class="sidebar-brand">
-                <strong>夏日吹奏</strong>
-                <span>记录美好时光</span>
+                <strong id="sidebarBrandTitle">夏日吹奏</strong>
+                <span id="sidebarBrandSubtitle">记录美好时光</span>
             </div>
         </div>
 
@@ -96,9 +99,9 @@
         </nav>
 
         <div class="sidebar-storage-card">
-            <span>SUMMER MEMORIES 2026</span>
-            <strong>蓝色海风存档</strong>
-            <p>照片、故事和收藏都在这里慢慢发光。</p>
+            <span id="sidebarStorageKicker">SUMMER MEMORIES 2026</span>
+            <strong id="sidebarStorageTitle">蓝色海风存档</strong>
+            <p id="sidebarStorageDescription">照片、故事和收藏都在这里慢慢发光。</p>
         </div>
     </aside>
 
@@ -322,6 +325,11 @@
                                 <div class="story-detail-kicker" id="storyDateMeta"></div>
                                 <h3 id="storyTitle"></h3>
                                 <p id="storySummary"></p>
+                                <label class="story-showcase-copy-field story-showcase-copy-field-inline">
+                                    <span>全屏标题下方文案</span>
+                                    <input id="storyShowcaseSubtitleInput" type="text" maxlength="36" placeholder="例如：那年夏天，像番剧片尾一样闪闪发光">
+                                    <output id="storyShowcaseSubtitleCount">0/36</output>
+                                </label>
                             </div>
                             <div class="story-detail-actions">
                                 <button class="story-secondary-btn showcase" id="storyShowcaseBtn" type="button">全屏展示</button>
@@ -334,6 +342,11 @@
                             <div class="story-appearance-copy">
                                 <strong>故事背景</strong>
                                 <span>选一张淡淡铺在后面，只做氛围，不抢照片主体。</span>
+                                <label class="story-showcase-copy-field story-showcase-footer-field">
+                                    <span>全屏底部寄语</span>
+                                    <input id="storyShowcaseFooterInput" type="text" maxlength="96" placeholder="例如：愿这一幕，永远停在我们的青春分镜里，连风声和星光都替我们记得">
+                                    <output id="storyShowcaseFooterCount">0/96</output>
+                                </label>
                             </div>
                             <div class="story-appearance-controls">
                                 <label class="story-background-select-label">
@@ -346,7 +359,7 @@
                                 <input type="file" id="storyBackgroundFileInput" accept="image/*" hidden>
                                 <label class="story-opacity-control">
                                     <span>透明度 <output id="storyBackgroundOpacityValue">18%</output></span>
-                                    <input type="range" id="storyBackgroundOpacityInput" min="0" max="55" value="18">
+                                    <input type="range" id="storyBackgroundOpacityInput" min="0" max="100" value="18">
                                 </label>
                             </div>
                         </div>
@@ -383,9 +396,26 @@
     <section class="story-showcase" id="storyShowcase" hidden aria-modal="true" role="dialog" aria-label="故事全屏展示">
         <div class="story-showcase-bg" id="storyShowcaseBg"></div>
         <div class="story-showcase-vignette"></div>
+        <div class="story-showcase-edge-decor" aria-hidden="true">
+            <span class="decor-film film-top"></span>
+            <span class="decor-film film-bottom"></span>
+            <span class="decor-film film-left"></span>
+            <span class="decor-paper paper-left"></span>
+            <span class="decor-paper paper-right"></span>
+            <span class="decor-polaroid polaroid-one"></span>
+            <span class="decor-polaroid polaroid-two"></span>
+            <span class="decor-polaroid polaroid-three"></span>
+            <span class="decor-ribbon ribbon-one"></span>
+            <span class="decor-ribbon ribbon-two"></span>
+            <span class="decor-ribbon ribbon-three"></span>
+            <span class="decor-moon"></span>
+        </div>
         <header class="story-showcase-head">
             <div>
-                <p id="storyShowcaseMeta"></p>
+                <div class="story-showcase-text-bar story-showcase-meta-bar" data-showcase-text-bar="showcaseSubtitle">
+                    <span class="story-showcase-text-grip" data-showcase-text-drag="showcaseSubtitle" aria-hidden="true">拖动</span>
+                    <p id="storyShowcaseMeta" contenteditable="true" spellcheck="false" data-placeholder="点击编辑标题下方文案"></p>
+                </div>
                 <h2 id="storyShowcaseTitle"></h2>
             </div>
             <div class="story-showcase-control">
@@ -394,6 +424,10 @@
                     <button id="storyShowcasePrevBtn" type="button">看更早</button>
                     <button id="storyShowcaseNextBtn" type="button">看更晚</button>
                     <button id="storyShowcaseAutoplayBtn" type="button" aria-pressed="false">自动播放</button>
+                    <label class="story-showcase-speed-control">
+                        <span>播放速度 <output id="storyShowcaseSpeedValue">54</output></span>
+                        <input id="storyShowcaseSpeedInput" type="range" min="50" max="72" step="2" value="54">
+                    </label>
                     <button id="storyShowcaseResetBtn" type="button">回到开头</button>
                     <button id="storyShowcaseCloseBtn" type="button">退出展示</button>
                 </div>
@@ -403,7 +437,10 @@
             <div class="story-showcase-track" id="storyShowcaseTrack"></div>
         </div>
         <footer class="story-showcase-foot">
-            <p id="storyShowcaseNarration"></p>
+            <div class="story-showcase-text-bar story-showcase-foot-bar" data-showcase-text-bar="showcaseFooter">
+                <span class="story-showcase-text-grip" data-showcase-text-drag="showcaseFooter" aria-hidden="true">拖动</span>
+                <p id="storyShowcaseNarration" contenteditable="true" spellcheck="false" data-placeholder="点击编辑底部寄语"></p>
+            </div>
         </footer>
     </section>
 

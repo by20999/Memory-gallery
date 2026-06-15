@@ -181,38 +181,53 @@ async function promptEditPhotoDetails() {
     const photo = getCurrentPhoto();
     if (!photo) return;
 
-    const rawName = window.prompt(
-        '想给这张照片换个名字吗？这里会直接修改磁盘里的真实文件名，后缀会自动保留；留空表示保持当前名字。',
-        photo.name || ''
-    );
-    if (rawName === null) return;
-
     const rawCaption = window.prompt(
-        photo.caption ? '\u4fee\u6539\u8fd9\u5f20\u7167\u7247\u7684\u7b80\u4ecb\uff0c\u7559\u7a7a\u53ef\u4ee5\u6e05\u9664\u3002' : '\u7ed9\u8fd9\u5f20\u7167\u7247\u8865\u4e00\u53e5\u7b80\u4ecb\uff0c\u7559\u7a7a\u8868\u793a\u6682\u65f6\u4e0d\u5199\u3002',
+        photo.caption ? '修改这张照片的描述，留空可以清除。' : '给这张照片补一句描述，留空表示暂时不写。',
         photo.caption || ''
     );
     if (rawCaption === null) return;
 
+    const rawEventDate = window.prompt(
+        '给这张照片补一个事件日期，可写 2026-06-12、2026/6/12 或留空。',
+        photo.eventDate || ''
+    );
+    if (rawEventDate === null) return;
+
+    const rawEventName = window.prompt(
+        '给这张照片补一个事件名，例如：毕业、旅行、生日、live；留空可以清除。',
+        photo.eventName || ''
+    );
+    if (rawEventName === null) return;
+
     const rawTags = window.prompt(
-        '\u7ed9\u8fd9\u5f20\u7167\u7247\u8865\u5145\u6807\u7b7e\uff0c\u591a\u4e2a\u6807\u7b7e\u53ef\u7528\u9017\u53f7\u3001\u987f\u53f7\u6216\u7a7a\u683c\u5206\u5f00\uff1b\u7559\u7a7a\u53ef\u6e05\u9664\u3002',
+        '给这张照片补充标签，多个标签可用逗号、顿号或空格分开；留空可清除。',
         (photo.tags || []).join('\uFF0C')
     );
     if (rawTags === null) return;
 
-    const renameCandidate = rawName.trim().replace(/\.[^.]+$/u, '').trim();
+    const rawName = window.prompt(
+        '如果还想改图片名字，可以在这里输入新名字；留空或取消都会保持当前文件名。',
+        ''
+    );
+
+    const renameCandidate = String(rawName || '').trim().replace(/\.[^.]+$/u, '').trim();
     const caption = rawCaption.trim().slice(0, 80);
+    const eventDate = rawEventDate.trim();
+    const eventName = rawEventName.trim().slice(0, 40);
     const tags = normalizeTags(rawTags).slice(0, 12);
     const currentName = String(photo.name || '').trim();
     const shouldRename = Boolean(renameCandidate) && renameCandidate !== currentName;
     const sameCaption = caption === (photo.caption || '');
+    const sameEventDate = eventDate === (photo.eventDate || '');
+    const sameEventName = eventName === (photo.eventName || '');
     const sameTags = JSON.stringify(tags) === JSON.stringify(normalizeTags(photo.tags));
-    if (!shouldRename && sameCaption && sameTags) {
+    if (!shouldRename && sameCaption && sameEventDate && sameEventName && sameTags) {
         showStatusNotice('\u7167\u7247\u4fe1\u606f\u6ca1\u6709\u53d8\u5316', { tone: 'info', duration: 1800 });
         return;
     }
 
     try {
-        const payload = { caption, tags };
+        const payload = { caption, eventDate, eventName, tags };
         if (shouldRename) payload.renameTo = renameCandidate;
 
         const result = await updatePhotoDetails(photo.id, payload);

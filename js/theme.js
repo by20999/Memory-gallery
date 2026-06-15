@@ -14,7 +14,14 @@ const THEME_PACKAGES = {
         accentHover: '#bf6948',
         cardBg: 'rgba(255, 251, 245, 0.62)',
         chipBg: 'rgba(255, 242, 229, 0.92)',
-        bodyGlow: 'radial-gradient(circle, rgba(255, 236, 214, 0.86) 0%, rgba(255, 236, 214, 0.08) 62%, rgba(255, 236, 214, 0) 72%)'
+        bodyGlow: 'radial-gradient(circle, rgba(255, 236, 214, 0.86) 0%, rgba(255, 236, 214, 0.08) 62%, rgba(255, 236, 214, 0) 72%)',
+        shell: {
+            brandTitle: '奶油片段',
+            brandSubtitle: '把温柔日常慢慢装订',
+            storageKicker: 'CREAM MEMORIES 2026',
+            storageTitle: '奶杏柔光存档',
+            storageDescription: '亲友、散步和午后光线，会在这里留下柔软的温度。'
+        }
     },
     film: {
         label: '胶片相册',
@@ -24,7 +31,14 @@ const THEME_PACKAGES = {
         accentHover: '#4b3425',
         cardBg: 'rgba(255, 244, 223, 0.54)',
         chipBg: 'rgba(92, 63, 43, 0.14)',
-        bodyGlow: 'radial-gradient(circle, rgba(255, 217, 163, 0.55) 0%, rgba(255, 217, 163, 0.08) 60%, rgba(255, 217, 163, 0) 72%)'
+        bodyGlow: 'radial-gradient(circle, rgba(255, 217, 163, 0.55) 0%, rgba(255, 217, 163, 0.08) 60%, rgba(255, 217, 163, 0) 72%)',
+        shell: {
+            brandTitle: '胶片巡游',
+            brandSubtitle: '把故事留在颗粒与暗角里',
+            storageKicker: 'FILM MEMORIES 2026',
+            storageTitle: '旧时光底片夹',
+            storageDescription: '街灯、旅途和晚风，会在这里慢慢显影成更有故事感的回忆。'
+        }
     },
     summer: {
         label: '夏日相册',
@@ -34,7 +48,14 @@ const THEME_PACKAGES = {
         accentHover: '#0b8398',
         cardBg: 'rgba(244, 255, 252, 0.56)',
         chipBg: 'rgba(228, 252, 247, 0.88)',
-        bodyGlow: 'radial-gradient(circle, rgba(183, 244, 237, 0.72) 0%, rgba(183, 244, 237, 0.08) 62%, rgba(183, 244, 237, 0) 72%)'
+        bodyGlow: 'radial-gradient(circle, rgba(183, 244, 237, 0.72) 0%, rgba(183, 244, 237, 0.08) 62%, rgba(183, 244, 237, 0) 72%)',
+        shell: {
+            brandTitle: '夏日吹奏',
+            brandSubtitle: '记录美好时光',
+            storageKicker: 'SUMMER MEMORIES 2026',
+            storageTitle: '蓝色海风存档',
+            storageDescription: '照片、故事和收藏都在这里慢慢发光。'
+        }
     }
 };
 
@@ -91,11 +112,29 @@ function updateHeaderCopyForPackage(packageKey, fallbackCopy = '') {
     notifyThemeTextChanged();
 }
 
+function updateShellCopy(packageKey) {
+    const themePackage = THEME_PACKAGES[packageKey];
+    const shellCopy = themePackage?.shell || {
+        brandTitle: '自定义主题',
+        brandSubtitle: '把相册调成你喜欢的样子',
+        storageKicker: 'CUSTOM MEMORIES',
+        storageTitle: '专属色调存档',
+        storageDescription: '这一页的光线和氛围已经跟着你的配色一起变了。'
+    };
+
+    if (dom.sidebarBrandTitle) dom.sidebarBrandTitle.textContent = shellCopy.brandTitle;
+    if (dom.sidebarBrandSubtitle) dom.sidebarBrandSubtitle.textContent = shellCopy.brandSubtitle;
+    if (dom.sidebarStorageKicker) dom.sidebarStorageKicker.textContent = shellCopy.storageKicker;
+    if (dom.sidebarStorageTitle) dom.sidebarStorageTitle.textContent = shellCopy.storageTitle;
+    if (dom.sidebarStorageDescription) dom.sidebarStorageDescription.textContent = shellCopy.storageDescription;
+}
+
 function applyGradient(gradient, persist = true) {
     clearPackageStyles();
     document.documentElement.style.setProperty('--bg-gradient', gradient);
     document.documentElement.setAttribute('data-theme-package', 'custom');
     updateHeaderCopyForPackage('custom', '当前主题由你亲手调色，这本相册也会跟着长出独一份的气质。');
+    updateShellCopy('custom');
     if (persist) {
         localStorage.setItem(GRADIENT_KEY, gradient);
         localStorage.setItem(THEME_MODE_KEY, 'manual');
@@ -121,6 +160,7 @@ function applyThemePackage(packageKey, options = {}) {
     localStorage.removeItem(GRADIENT_KEY);
     syncActivePreset('');
     updateHeaderCopyForPackage(packageKey);
+    updateShellCopy(packageKey);
 
     if (persist) {
         localStorage.setItem(THEME_MODE_KEY, mode);

@@ -276,9 +276,13 @@ X-Admin-Password: <DELETE_PASSWORD>
 {
   "name": "新的故事名",
   "description": "短描述",
-  "content": "长文本内容"
+  "content": "长文本内容",
+  "showcaseSubtitle": "全屏标题下方短文案",
+  "showcaseFooter": "全屏底部寄语"
 }
 ```
+
+`showcaseSubtitle` 最长 36 个字符，`showcaseFooter` 最长 96 个字符；它们只用于故事模式全屏展示，不占用普通“故事叙述”长文本。
 
 ### `DELETE /api/stories/:id`
 
@@ -339,5 +343,5 @@ X-Admin-Password: <DELETE_PASSWORD>
 ```
 
 - `backgroundPhotoId`：相册中已上传图片的文件名，空字符串表示不使用相册背景。
-- `backgroundOpacity`：背景透明度，服务端会限制在 `0` 到 `0.55`，默认 `0.18`。
+- `backgroundOpacity`：背景透明度，服务端会限制在 `0` 到 `1`，默认 `0.18`。
 - 用户从电脑本地上传的故事背景只保存在当前浏览器 `localStorage`，不进入 API 和服务器 JSON。

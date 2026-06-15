@@ -1,5 +1,77 @@
 # 项目日志
 
+## 2026-06-15
+
+- 完成：按用户反馈继续修正故事全屏展示自动播放。默认速度从 `50px/s` 调整为 `54px/s`，速度下限从 `40px/s` 调整为 `50px/s`，功能菜单中的滑条初始值、最小值和显示值同步更新。
+- 完成：修复播放中拖动速度滑条后实际速度响应滞后的问题。当前自动播放状态下变更速度会取消旧的 `requestAnimationFrame`、重置帧时间，并立即用新速度重新排下一帧，不需要退出再进入全屏展示。
+- 验证：`node --check js/story.js` 通过；`npm run test:smoke` 通过；`npm run audit:data` 通过，当前 103 张照片、103 张缩略图、1 个故事、5 条故事引用、无断链。
+
+## 2026-06-15
+
+- 完成：继续按用户反馈修正故事全屏展示。左上角和右下角的大型花朵装饰已从 `index.html` 与 `js/story.js` 的全屏装饰层移除，并在 `style.css` 末尾增加最终兜底规则，防止历史 `.decor-branch` 样式重新显示。
+- 完成：全屏装饰方向改为轻细节：保留低透明度胶片、纸张、拍立得、星尘、粒子、花瓣和更细的发光时间线，降低边角大装饰存在感。
+- 完成：自动播放速度改为滑条数值等于实际像素速度，范围收敛为 `30-72px/s`，默认 `40px/s`，避免显示值和真实播放体感不一致。
+- 完成：普通故事页“全屏底部寄语”输入框增加专用 `story-showcase-footer-field` 类，并在 `style.css` 真正文件末尾用最终覆盖层强制撑满可用宽度，避免前面重复样式覆盖导致看起来没变。
+- 验证：`node --check js/story.js`、`node --check server/data/storyStore.js`、`node --check server/routes/stories.js` 通过；`npm run test:smoke` 通过；`npm run audit:data` 通过，当前 103 张照片、103 张缩略图、1 个故事、5 条故事引用、无断链。
+
+## 2026-06-15
+
+- 完成：按用户反馈继续调整故事模式全屏展示。普通故事页“全屏底部寄语”输入区加宽，底部寄语上限从 48 提升到 96，并同步前端、后端 normalize、API 文档和数据模型说明。
+- 完成：全屏自动播放速度重新调慢，速度滑条从 `72-180px/s` 改为 `30-72px/s`，默认 `40px/s`，避免最低档仍过快。
+- 完成：全屏边缘装饰进一步复用 `assets/story-decor/` 中多种 SVG：左上樱花、右下樱花枝、两种胶片、手写便签、旧纸框和小拍立得内的樱花纹理，减少只使用单一樱花素材的感觉。
+- 完成：清理故事 `story-mqalexdg-aw4a1z` 中 8 条已断链旧 `Snipaste_...png` 条目，仅保留当前存在于 `uploads/` 的 5 条故事图片引用，并重排故事条目 `position`。
+- 验证：`node --check js/story.js`、`node --check server/data/storyStore.js`、`node --check server/routes/stories.js` 通过；`npm run audit:data` 通过，当前 103 张照片、103 张缩略图、1 个故事、5 条故事引用、无断链；`npm run test:smoke` 通过；临时服务下 `/`、`/healthz`、`/api/photos`、`/api/stories` 和多个 `/assets/story-decor/*.svg` 均返回 200。
+
+## 2026-06-15
+
+- 完成：继续精修故事模式全屏展示。放大后的图片裁切层级改为图片在上、装饰环在下，避免图片上出现一圈压在内容上的圆形边框线；hover 后裁切形状改成更明显的不规则 blob，减少过圆、过规整的问题。
+- 完成：收薄默认照片边框装饰，降低外环、星芒、轨道和阴影强度，只保留少量高光修饰，避免未 hover 时相框元素堆叠太厚。
+- 完成：加宽普通故事页全屏底部寄语输入框，并同步加宽左侧故事管理卡列宽，保持编辑区对齐；标题下方文案和底部寄语 placeholder 改为更年轻、二次元风格的示例。
+- 完成：修复全屏背景透明度滑条不生效的根因。历史 CSS 使用 `opacity: 0.76 !important` 覆盖了 JS 设置，现在改为 JS 以 important 写入真实滑条值；背景透明度上限从 55% 调整为 100%，服务端数据规范同步从 `0-0.55` 改为 `0-1`。
+- 完成：减轻全屏背景滤镜与遮罩，不再强制 blur、灰暗、luminosity 混合，尽量保留用户上传背景图片的原始色彩和内容。
+- 完成：自动播放速度范围从 `24-72px/s` 调整为 `72-180px/s`，默认 `88px/s`，并在拖动速度条时重置播放帧时间，让响应更直接，避免低速档看起来几乎不动。
+- 完成：FreeSVG 樱花素材 `assets/story-decor/Cherry-Blossoms.svg` 改为正常混合、取消过重 mask，左上角尺寸和透明度提高，确保用户能明确看到该 SVG 素材被调用。
+- 文档：同步更新 `docs/api.md`、`docs/data-model.md`、`learning-plan/story-showcase-resources-2026-06-15.md`，记录背景透明度上限与素材使用变化。
+- 验证：`node --check js/story.js`、`node --check js/dom.js`、`node --check js/lightbox.js`、`node --check js/theme.js`、`node --check server/data/storyStore.js`、`node --check server/routes/stories.js`、`node --check server.js` 通过；`npm run test:smoke` 通过；临时服务下 `/`、`/healthz`、`/api/photos`、`/assets/story-decor/Cherry-Blossoms.svg` 均返回 200。
+- 风险：`npm run audit:data` 仍因既有故事 `story-mqalexdg-aw4a1z` 中 8 条旧 `Snipaste_...png` 故事引用断裂失败；本轮未删除或修复真实用户数据。
+
+## 2026-06-15
+
+- 完成：继续收口故事模式全屏展示的 hover 体验。新增最终 CSS 锁定层，覆盖历史 `.story-showcase-item:hover` 旧规则，确保鼠标进入节点时不再立刻放大整张图片；只有进入圆框/图片区域后，内层裁切窗口以约 1.42 秒从中心缓慢外扩，图片图层保持固定尺寸和固定中心。
+- 完成：进一步提高全屏标题区安全高度、行高和下方 padding，避免 `My` 等英文下探字母被裁切；圆框继续保持轻微不规则 blob 形态，减少标准正圆的规整感。
+- 完成：修正文档记录中的旧方案冲突，明确全屏标题下方文案和底部寄语现在以 `showcaseSubtitle/showcaseFooter` 为准，普通 `content` 继续作为“故事叙述”长文本。
+- 验证：执行 `node --check js/story.js`、`node --check js/lightbox.js`、`node --check js/dom.js`、`node --check js/theme.js`、`node --check server/routes/stories.js`、`node --check server/data/storyStore.js`、`node --check server.js` 通过；执行 `npm run test:smoke` 通过；临时启动服务后首页、`/healthz`、`/api/photos` 和 `/assets/story-decor/Cherry-Blossoms.svg` 均返回 200；Chrome headless 可加载首页 DOM 并确认全屏文案输入、全屏容器和速度滑条存在。
+- 风险：`npm run audit:data` 仍因既有故事 `story-mqalexdg-aw4a1z` 中 8 条旧 `Snipaste_...png` 故事引用断裂失败；本轮未删除或修复真实用户数据。
+
+## 2026-06-15
+
+- 完成：继续按用户参考图修正故事全屏展示。节点文案不再使用参考图占位句，优先展示故事条目备注或用户填写的照片描述；没有用户描述时不显示节点文案，只保留时间信息，避免把示例文案误认为真实内容。
+- 完成：标题下方与屏幕底部文案改为可编辑、可拖动的文字栏，视觉字体风格保持原有海报感；早期实现曾短暂复用 `description/content`，后续已按用户要求改为独立保存到 `showcaseSubtitle/showcaseFooter`，拖动位置仅保存到当前浏览器 `localStorage`。
+- 完成：重新分层全屏时间线舞台。背景星尘、粒子、花瓣与边角装饰固定在舞台层，鼠标上下左右拖动时只移动时间线、节点和照片；照片节点改为明确的上下分布，时间标签与照片同侧，不再让时间流线从图片中心穿过。
+- 完成：修正圆形照片 hover 逻辑。图片本体固定为较大底图，默认由较小圆形窗口裁切，hover 时只让圆形窗口从中心向外扩展以露出更多图片区域，不再同步缩放图片与圆框。
+- 完成：修正全屏圆形记忆泡泡被历史 `min-height` 样式拉成椭圆的问题，初始形态恢复为正圆裁切；hover 放大幅度继续增大一圈。
+- 完成：全屏功能菜单新增自动播放速度滑条，默认速度调慢为 `34px/s`，允许在 `24px/s` 到 `72px/s` 之间调整，避免过慢或过快。
+- 完成：优化单张照片描述入口。主相册灯箱的“添加/编辑信息”先编辑单图描述、事件日期、事件名和标签，重命名改为最后的可选项；故事模式预览节点点击图片也可编辑该照片描述等信息。
+- 完成：继续提升全屏海报装饰自然感，使用不规则圆角、斜切胶片、错落花瓣、纸张倾斜和边缘装饰扰动减少代码生成物体的规整感。
+- 文档：新增 `learning-plan/story-showcase-resources-2026-06-15.md`，记录本轮实际使用的 Google Fonts 字体和评估但未下载使用的 FreeSVG 素材来源。
+- 验证：`node --check js/story.js`、`node --check js/lightbox.js`、`node --check js/dom.js`、`npm run test:smoke` 通过；`npm start` 可在 `PORT=3212` 启动，首页、`/healthz` 与 `/api/photos` 均返回 `200`，`/api/photos` 为 JSON。
+- 完成：按用户参考图重做故事全屏展示的核心视觉层。时间线从简单双虚线升级为多层发光丝带，包含暖金主线、粉蓝流光、运行星芒、节点光环和串珠节点；照片节点改为参考图式圆形记忆泡泡，增加外环轨道、圆形内描边、星芒、柔光和 hover 放大。
+- 完成：全屏故事新增海报式边缘构图：顶部标题发光、星空/粉紫霞光背景、樱花花簇、飘落花瓣、胶片、拍立得、纸张、丝带和底部寄语；装饰层移到全屏容器直系层级，避免被横向时间线遮罩裁掉。
+- 完成：每个故事节点保留“时间 + 用户文案”层级；优先使用照片事件名、故事备注或照片描述，但缺失时不再使用二次元主题兜底文案，避免示例文案混入真实故事。
+- 完成：修复全屏展示打开时页面仍可纵向滚动的问题，打开/关闭时同步维护 `html/body.story-showcase-open`；移动端保留横向拖动浏览并收敛标题字号和边角装饰。
+- 验证：`node --check js/story.js` 通过；`npm start` 本地服务可启动，`/healthz`、`/api/photos`、`/api/stories` 均可返回；Chrome DevTools Protocol 在 `1920x1080` 和 `390x844` 视口真实打开故事全屏展示并截图检查，桌面与移动端均能显示发光时间线、圆形照片节点、边角装饰和底部寄语。
+- 验证补充：排查到当前 `story-data.json` 中 13 个故事项有 8 个 `photoId` 对应文件不在 `uploads/`，因此后端按现有逻辑只返回 5 个可展示片段；本轮未删除或修改真实故事数据。
+- 验证补充：本轮执行 `npm run audit:data` 仍因上述 8 条既有断链故事引用失败；当前照片、缩略图和照片元数据数量均为 103，断链不是本次全屏展示修正引入。
+- 风险与后续：本轮为追求参考图氛围继续在 `style.css` 末尾追加高优先级视觉覆盖层，短期最安全，长期建议将故事全屏展示样式拆成独立模块并清理旧覆盖规则；樱花、胶片、纸张等装饰为代码生成的近似视觉，若后续追求更极致像素级，可替换为明确授权的透明 PNG/SVG 资产。
+
+## 2026-06-14
+
+- 完成：修复主题切换不完整的问题。首页壳层的侧边栏品牌文案、主题存档卡、背景装饰线条、上传主按钮、圆角操作按钮边框和记忆卡收藏角标，统一改为读取 `data-theme-package` 对应的主题变量，不再残留固定夏日配色。
+- 完成：为奶油相册、胶片相册、夏日相册和自定义渐变补齐主题联动信息。除了背景色和按钮色之外，侧边栏文案与装饰插画也会跟随主题包一起切换，避免出现“局部还是夏日主题”的视觉回归。
+- 补充修复：继续收口截图中残留的主题细节。相册标题手绘线条、星形装饰、上传信息表单、增强下拉菜单、工具条、网格/时间线切换和搜索提示统一接入主题包变量，旧的 `--paper-line`、`--text-primary` 等组件变量也会随当前主题包同步。
+- 验证：执行 `node --check js/theme.js`、`node --check js/dom.js`、`node --check js/main.js` 通过；执行 `npm run test:smoke` 通过。
+- 验证：执行 `npm run audit:data` 时发现既有故事引用断链，当前为 `story-mqalexdg-aw4a1z` 下多条 `photoId` 指向不存在的旧文件；本轮未修改 `story-data.json` 与真实用户数据，断链问题属于仓库当前存量数据状态，不是本次主题修复引入。
+
 ## 2026-06-13
 
 - 完成：将故事全屏自动播放速度从 64px/s 微调为 56px/s，让流线仍可见但更舒缓。
@@ -119,7 +191,7 @@
   - `node --check server/routes/stories.js server/data/storyStore.js` 通过。
   - Chrome headless 在 `http://localhost:3100` 验证故事模式：已有故事直接展示详情，节点上移/下移改变位置，拖动后顺序发生变化，全屏故事剧场打开并显示 5 个节点，总功能菜单可展开，灯箱编辑状态可打开。
 - 风险：
-  - 无头浏览器脚本触发 `requestFullscreen()` 会因非真实用户手势被浏览器拒绝，但固定全屏 overlay 已正常显示；真实用户点击按钮时会尝试进入浏览器全屏，失败时也保留全屏覆盖层。
+  - 无头浏览器脚本验证固定全屏 overlay 已正常显示；后续为避免浏览器原生全屏提示，故事展示已改为只使用应用内沉浸式遮罩。
   - 当前文档部分历史中文在终端中仍显示乱码，本轮只追加新的 UTF-8 中文记录，没有重写历史段落。
 
 ## 2026-06-13
@@ -274,3 +346,32 @@
 
 - 完成：增强故事全屏自动播放的可见效果。将自动播放速度从 22px/s 提升到 64px/s，并为全屏时间线增加右侧播放余量，避免大屏下可滚动距离过短导致看起来像没有播放。
 - 验证：执行 `node --check js/story.js`、`npm run test:smoke`、`npm run audit:data` 通过；Chrome CDP 在 `1600x900` 视口实测轨道可滚动距离约 2335px，自动播放 2.1 秒滚动约 117px，按钮保持“停止播放”状态。
+## 2026-06-15
+
+- 完成：继续精修故事模式全屏展示。鼠标悬停图片时的圆形裁切窗口改为更缓慢的展开过渡，让用户能看到从中心向外放大的过程；图片图层仍保持固定尺寸和固定中心，不跟随圆框同步缩放。
+- 完成：将全屏时间流线进一步变纤细，降低外层光晕、丝带线和节点准星的硬边界感，减少“靶心/AI 生成形状”的观感，同时保留发光时间线氛围。
+- 完成：新增 `assets/story-decor/` 本地装饰素材目录和 `/assets` 静态托管映射，下载 Openclipart 的樱花枝、胶片和纸张类 SVG；全屏边缘装饰改用本地素材并通过透明度、渐隐 mask、轻微 blur 和柔光混合融入背景，替换部分过于规整的 CSS 装饰。
+- 完成：更新 `learning-plan/story-showcase-resources-2026-06-15.md`，记录本轮实际使用的字体、Openclipart 素材、下载路径、项目用法、视觉效果、来源链接，以及 FreeSVG 仍被 403 阻拦时的手动下载方法。
+- 验证：执行 `node --check server.js`、`node --check js/story.js`、`node --check js/dom.js`、`node --check js/lightbox.js` 通过；执行 `npm run test:smoke` 通过；临时启动服务后首页、`/healthz`、`/api/photos` 和 3 个实际引用的 `/assets/story-decor/*.svg` 均返回 200。`npm run audit:data` 仍因既有故事 `story-mqalexdg-aw4a1z` 中 8 条断裂引用失败，非本轮新增问题。
+- 风险：本轮为了快速贴近参考图，仍在 `style.css` 尾部追加高优先级覆盖层；长期建议拆分故事全屏专用样式文件，减少历史覆盖层叠加。
+
+## 2026-06-15
+
+- 完成：修复故事全屏展示多处返工问题。图片 hover 改为内层裁切窗口缓慢展开，避免鼠标进入瞬间跳变、离开才慢慢还原；全屏标题区增加安全高度和下方留白，避免 `My` 这类英文下探字母被裁切。
+- 完成：全屏图片圆框从标准正圆改为轻微不规则 blob 圆，保持圆形记忆泡泡气质但减少过于规整的 AI 味。
+- 完成：全屏边缘樱花装饰改用用户手动下载的 FreeSVG `assets/story-decor/Cherry-Blossoms.svg`，并提高透明度与层级，修复素材存在但视觉上几乎看不到的问题；胶片与纸张素材继续通过 `/assets` 静态路径加载。
+- 完成：新增全屏展示专用文案字段 `showcaseSubtitle` 和 `showcaseFooter`，普通故事页标题卡与背景卡分别提供输入入口和字数计数；`content` 继续作为“故事叙述”长文本，不再被全屏底部寄语占用。
+- 文档：同步更新 `docs/api.md`、`docs/data-model.md`、`learning-plan/story-showcase-resources-2026-06-15.md` 和 `memory/decision-log.md`。
+## 2026-06-15
+
+- 完成：故事模式“全屏展示”不再调用浏览器原生 `requestFullscreen()`，改为只使用项目已有的固定沉浸式遮罩层，避免 Chrome 等浏览器显示无法由页面隐藏的“按 Esc 退出全屏”提示。
+- 完成：同步移除故事展示关闭时的 `document.exitFullscreen()` 逻辑和 `fullscreenchange` 监听，关闭按钮与 Esc 仍然关闭应用内全屏展示层，自动播放、拖拽和展示布局不受影响。
+- 决策：这里的“全屏展示”定义为应用内覆盖整个视口的展示模式，而不是浏览器原生全屏模式；浏览器原生全屏提示属于安全 UI，不能通过 CSS 或 JS 关闭。
+- 验证：执行 `node --check js/story.js`、`npm run test:smoke`、`npm run audit:data` 通过；执行 `rg -n "requestFullscreen|exitFullscreen|fullscreenchange|fullscreenElement" js/story.js` 确认故事前端不再触发原生全屏 API。
+
+## 2026-06-15
+
+- 完成：按用户最终取舍恢复故事模式浏览器原生全屏。`openStoryShowcase()` 再次调用 `requestFullscreen()`，`closeStoryShowcase()` 退出原生全屏，并恢复 `fullscreenchange` 监听来同步浏览器退出全屏后的展示层状态。
+- 完成：全屏自动播放速度范围从 `30-72px/s` 调整为 `40-72px/s`，默认值从 `40px/s` 调整为 `50px/s`，功能菜单中的速度滑条默认值和显示值同步更新。
+- 决策：当前以真正系统级全屏优先，接受浏览器自带的 Esc 退出全屏提示；该提示属于浏览器安全 UI，项目不再规避。
+- 验证：执行 `node --check js/story.js`、`npm run test:smoke`、`npm run audit:data` 通过；当前数据体检为 103 张照片、103 张缩略图、1 个故事、5 条故事引用、无断链。
