@@ -1,5 +1,10 @@
 # 项目日志
 
+## 2026-06-21
+
+- 完成：将项目中仍出现的旧项目名同步替换为新名 `Memory-gallery`，覆盖包元数据、README、健康检查服务名、本地启动脚本标题、冒烟测试临时目录前缀、API 示例和历史审计文档。
+- 验证：执行全仓旧名搜索无命中；`node --check server.js`、`node --check scripts/smoke-test.js`、`npm run test:smoke` 通过；用 `PORT=4333 npm start` 启动服务后，首页 `/`、`/api/photos` 和 `/healthz` 均返回 200，`/healthz` 服务名为 `Memory-gallery`。
+
 ## 2026-06-19
 
 - 完成：按用户反馈重做故事模式全屏自动播放速度控制，舍弃精确数值滑条，改为“低速 / 中速 / 高速”三档按钮。
@@ -297,7 +302,7 @@
 - 完成：为主相册网格新增分页体验，每页 18 张照片，支持上一页/下一页、页码、省略号逻辑和输入页码跳转；分页控件使用主题变量适配当前主题色。
 - 完成：重排故事模式为更独立的故事工作台。切换故事页时收起相册大标题并滚回顶部；左侧故事列表收窄为轻量轨道，右侧保留故事信息、背景设置和大时间线舞台；修正时间线坐标和预览框高度，避免图片与操作按钮被裁切。
 - 验证：`node --check js/gallery.js js/state.js js/dom.js js/story.js js/main.js js/system.js js/theme.js` 通过；`git diff --check -- index.html js/dom.js js/state.js js/gallery.js js/story.js js/main.js style.css` 仅有 CRLF 提示；`npm run test:smoke` 通过；`npm run audit:data` 通过，当前 123 张照片、123 个缩略图、1 个故事、5 条故事引用，无断链。
-- 验证：使用 Chrome CDP 在 `http://localhost:3100` 检查桌面视口：相册首页首屏渲染 18 张卡片，跳转第 7 页后渲染 15 张；最近新增无重复日期标题；主相册卡片文本不包含“分组/分组封面”；故事页 `scrollY=0`、相册标题隐藏、时间线节点未被裁切、页面无横向溢出。截图保存在 `C:\Temp\family-photo-gallery-album-final2.png` 和 `C:\Temp\family-photo-gallery-story-final2.png`。
+- 验证：使用 Chrome CDP 在 `http://localhost:3100` 检查桌面视口：相册首页首屏渲染 18 张卡片，跳转第 7 页后渲染 15 张；最近新增无重复日期标题；主相册卡片文本不包含“分组/分组封面”；故事页 `scrollY=0`、相册标题隐藏、时间线节点未被裁切、页面无横向溢出。截图保存在 `C:\Temp\Memory-gallery-album-final2.png` 和 `C:\Temp\Memory-gallery-story-final2.png`。
 - 风险：当前仍以 `style.css` 末尾覆盖层继续收口视觉，还没有拆分样式文件；后续若继续像素级还原参考图，建议逐步整理 shell、album、story 三类样式，减少历史覆盖规则叠加。
 ## 2026-06-13
 
@@ -316,7 +321,7 @@
 - 完成：故事标题区压缩为单行大标题，操作按钮收紧到右侧；左侧故事面板完整显示创建入口和当前故事卡，多个故事仍保留下拉切换能力。
 - 完成：故事时间线改为更宽的横向铺陈，5 张图按参考图节奏展开，节点控制条和图片整体上移，图片不再被压到面板底部；颜色、按钮、线条、面板背景统一读取当前主题变量，夏日主题下保持蓝白清爽视觉。
 - 验证：`node --check js/gallery.js js/state.js js/dom.js js/story.js js/main.js js/system.js js/theme.js` 通过；`git diff --check -- js/story.js style.css docs/project-log.md memory/decision-log.md` 仅有 CRLF 提示；`npm run test:smoke` 通过；`npm run audit:data` 通过，当前 123 张照片、123 张缩略图、1 个故事、5 条故事引用，无断链。
-- 验证：使用 Chrome CDP 在 `1600x1000` 桌面视口检查故事模式，时间线面板宽度 1246px 并横跨左右区域，左侧故事面板高度 420px 且不再占满整列，标题卡一行显示故事名，页面无横向溢出。截图保存为 `C:\Temp\family-photo-gallery-story-reference-rebuild.png`。
+- 验证：使用 Chrome CDP 在 `1600x1000` 桌面视口检查故事模式，时间线面板宽度 1246px 并横跨左右区域，左侧故事面板高度 420px 且不再占满整列，标题卡一行显示故事名，页面无横向溢出。截图保存为 `C:\Temp\Memory-gallery-story-reference-rebuild.png`。
 - 风险与后续：本轮仍用 `style.css` 末尾覆盖层修正历史样式层叠，避免大规模重构误伤现有功能；后续如果继续像素级推进，应逐步拆分并清理 story 相关旧覆盖规则。
 
 ## 2026-06-13
@@ -327,7 +332,7 @@
 - 完成：修复全屏展示“功能”按钮消失问题。原因是 `.story-view-active header { display:none }` 误伤了全屏展示内部的 `story-showcase-head`，现已精确恢复全屏展示头部和右上角功能按钮，并收回全屏标题避免裁切。
 - 验证：Chrome CDP 在 `1600x1000` 桌面视口检查，故事模式 shell 左右边界为 `196/1582`，标题卡、背景卡和时间线右边界对齐，背景设置控件未越界，页面无横向溢出；全屏展示功能按钮尺寸为 `86x46` 且可见。
 - 验证：`node --check js/gallery.js js/state.js js/dom.js js/story.js js/main.js js/system.js js/theme.js` 通过；`git diff --check -- style.css js/story.js docs/project-log.md memory/decision-log.md` 仅有 CRLF 提示；`npm run test:smoke` 通过；`npm run audit:data` 通过，当前 123 张照片、123 张缩略图、1 个故事、5 条故事引用，无断链。
-- 截图：`C:\Temp\family-photo-gallery-album-title-final.png`、`C:\Temp\family-photo-gallery-story-align-final.png`、`C:\Temp\family-photo-gallery-showcase-menu-final.png`。
+- 截图：`C:\Temp\Memory-gallery-album-title-final.png`、`C:\Temp\Memory-gallery-story-align-final.png`、`C:\Temp\Memory-gallery-showcase-menu-final.png`。
 - 风险与后续：标题字体受本机可用字体限制，无法完全等同参考图字体文件；当前用系统字体、手写英文和 SVG 流星线尽量贴近参考图气质。后续若要更接近像素级，可引入明确授权的字体文件并统一加载。
 
 ## 2026-06-13
@@ -343,39 +348,40 @@
 - 完成：继续精修故事模式普通页，顶栏右侧快捷按钮整体左移，避免和右上角主题切换按钮重合；故事标题区三个操作按钮收紧为更贴合文字的尺寸。
 - 完成：进一步削弱故事模式普通页的大卡片感，面板改为更轻薄的开放式半透明分区，只保留弱边界和低阴影，减少模板感。
 - 完成：重做故事全屏展示视觉。故事标题改为单行瘦字体；时间流线曲折幅度增大；照片改为较小的不规则圆形，相邻照片上下交错分布；照片有描述时会按上下位置展示在圆框外侧；鼠标悬停照片有轻微放大效果；横向拖动视口左右边缘保留朦胧渐隐。
-- 验证：使用 Chromium headless 在 `1600x1000` 视口检查故事页，顶栏按钮与主题按钮无重叠，三个故事操作按钮高度 38px，页面无横向溢出；全屏标题单行显示，照片圆框约 140px 且上下分布，时间线曲线更明显。截图保存为 `C:\Temp\family-photo-gallery-story-desk-polish2.png` 和 `C:\Temp\family-photo-gallery-showcase-polish2.png`。
+- 验证：使用 Chromium headless 在 `1600x1000` 视口检查故事页，顶栏按钮与主题按钮无重叠，三个故事操作按钮高度 38px，页面无横向溢出；全屏标题单行显示，照片圆框约 140px 且上下分布，时间线曲线更明显。截图保存为 `C:\Temp\Memory-gallery-story-desk-polish2.png` 和 `C:\Temp\Memory-gallery-showcase-polish2.png`。
 - 验证：执行 `node --check js/story.js js/gallery.js js/dom.js`、`npm run test:smoke`、`npm run audit:data` 通过。
 - 风险与后续：当前故事样例里的 5 张照片没有描述，所以截图中未出现圆框外描述；已有逻辑会在照片或故事节点有描述时按上/下位置显示在圆框外。
 
 ## 2026-06-13
 
 - 完成：修正故事全屏展示的照片悬停效果。默认不规则圆框扩大约两档；鼠标悬停时改为扩大圆框裁切窗口，图片图层保持固定尺寸和比例，不再随整个圆框一起缩放。
-- 验证：使用 Chromium headless 真实鼠标移动检查，圆框窗口从约 179px 扩到约 221px，图片图层保持约 221px 且 `img` 无 scale transform；截图保存为 `C:\Temp\family-photo-gallery-showcase-hover-window-final.png`。
+- 验证：使用 Chromium headless 真实鼠标移动检查，圆框窗口从约 179px 扩到约 221px，图片图层保持约 221px 且 `img` 无 scale transform；截图保存为 `C:\Temp\Memory-gallery-showcase-hover-window-final.png`。
 
 ## 2026-06-13
 
 - 完成：继续调整故事全屏照片悬停窗口。默认窗口收为约 158px，悬停窗口扩到约 250px，实现约 2.5 倍面积展开；节点预留固定空间并以中心扩张，避免视觉上像平移。
 - 完成：为悬停圆框边缘增加细描边、外扩柔光和阴影，让窗口展开时更有氛围感。
-- 验证：使用 Chromium headless 真实鼠标移动检查，圆框面积比为 2.5036，中心位移约 0px，图片图层保持固定尺寸且无 scale transform；截图保存为 `C:\Temp\family-photo-gallery-showcase-hover-2p5.png`。
+- 验证：使用 Chromium headless 真实鼠标移动检查，圆框面积比为 2.5036，中心位移约 0px，图片图层保持固定尺寸且无 scale transform；截图保存为 `C:\Temp\Memory-gallery-showcase-hover-2p5.png`。
+
 ## 2026-06-13
 
 - 完成：继续修正故事全屏展示尺寸与裁切问题。未悬停图片窗口从 158px 提升到 224px，默认可见面积约扩大 2 倍；悬停完整展示窗口从 434px 收敛到 354px，避免展开后过大压迫时间线，同时保留中心锚点展开和边缘柔光阴影。
 - 完成：调整全屏故事时间线安全区。时间线画布高度提升到 820px，整体中线下移并降低上方波峰，标题栏改为可见溢出和更宽松行高，避免故事名字与偏上图片被标题区域截取。
 - 验证：执行 `node --check js/story.js`、`npm run test:smoke`、`npm run audit:data` 通过；`git diff --check -- style.css js/story.js docs/project-log.md memory/decision-log.md` 仅有既有 CRLF 提示。
-- 验证：使用 Chrome CDP 在 `1600x1000` 视口实测全屏展示，默认窗口 computed size 为 224px，悬停后为 354px，面积比约 2.50，中心位移约 0px；所有 5 张故事图片均低于标题底部，最高节点仍保留约 228px 安全距离。截图保存为 `C:\Temp\family-photo-gallery-showcase-no-crop-resize.png`。
+- 验证：使用 Chrome CDP 在 `1600x1000` 视口实测全屏展示，默认窗口 computed size 为 224px，悬停后为 354px，面积比约 2.50，中心位移约 0px；所有 5 张故事图片均低于标题底部，最高节点仍保留约 228px 安全距离。截图保存为 `C:\Temp\Memory-gallery-showcase-no-crop-resize.png`。
 
 ## 2026-06-13
 
 - 完成：继续优化故事全屏时间线展示。将曲线路径和照片节点分离计算，照片固定分布在时间线的上方或下方，避免虚线从圆形照片中间穿过；把整条时间线从屏幕中下部收回到更居中的区域。
 - 完成：增强全屏氛围动效，增加粒子数量、星尘漂移、线条脉冲、照片轻微浮动和粒子云层，同时加入 `prefers-reduced-motion` 降级；隐藏左下角全屏说明文案，减少对主体图片的干扰。
-- 验证：执行 `node --check js/story.js`、`npm run test:smoke`、`npm run audit:data` 通过；Chrome CDP 在 `2048x900` 视口检查 5 张照片均位于曲线上下两侧，粒子数量为 14，线条和星尘动效已生效。截图保存为 `C:\Temp\family-photo-gallery-showcase-centered-orbit-final2.png`。
+- 验证：执行 `node --check js/story.js`、`npm run test:smoke`、`npm run audit:data` 通过；Chrome CDP 在 `2048x900` 视口检查 5 张照片均位于曲线上下两侧，粒子数量为 14，线条和星尘动效已生效。截图保存为 `C:\Temp\Memory-gallery-showcase-centered-orbit-final2.png`。
 
 ## 2026-06-13
 
 - 完成：隐藏故事全屏展示左上角的片段数量提示，避免和标题、照片主体抢视觉注意力；继续隐藏左下角说明文案。
 - 完成：将故事标题栏压缩并上移，移除标题栏背景/滤镜遮罩，同时提高悬停照片层级，避免上端照片放大时被标题区域截住。
 - 完成：将照片悬停窗口从 288px 提升到 330px，让鼠标移入后的放大效果更明显；同步微调上方轨道偏移，保证顶部仍有安全距离。
-- 验证：执行 `node --check js/story.js`、`npm run test:smoke`、`npm run audit:data` 通过；Chrome CDP 在 `2048x900` 视口实测最上方照片悬停后 computed size 为 330px，窗口顶部仍保留约 24px 空间，左上提示为 `display:none`。截图保存为 `C:\Temp\family-photo-gallery-showcase-hover-header-clearance.png`。
+- 验证：执行 `node --check js/story.js`、`npm run test:smoke`、`npm run audit:data` 通过；Chrome CDP 在 `2048x900` 视口实测最上方照片悬停后 computed size 为 330px，窗口顶部仍保留约 24px 空间，左上提示为 `display:none`。截图保存为 `C:\Temp\Memory-gallery-showcase-hover-header-clearance.png`。
 
 ## 2026-06-13
 

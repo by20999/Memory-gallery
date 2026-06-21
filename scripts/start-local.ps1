@@ -39,7 +39,7 @@ function Resolve-FreePort($preferredPort) {
     throw "No available local port found from $preferredPort to $($preferredPort + 29)."
 }
 
-Write-Host "Family Photo Gallery local starter" -ForegroundColor Cyan
+Write-Host "Memory-gallery local starter" -ForegroundColor Cyan
 Write-Host "Project: $projectRoot"
 
 Assert-Command "node" "Install Node.js LTS from https://nodejs.org/ and try again."

@@ -24,7 +24,7 @@ app.get('/style.css', (req, res) => {
     res.sendFile(path.join(projectRoot, 'style.css'));
 });
 app.get('/healthz', (req, res) => {
-    res.json({ ok: true, service: 'family-photo-gallery' });
+    res.json({ ok: true, service: 'Memory-gallery' });
 });
 app.use('/js', express.static(path.join(projectRoot, 'js'), {
     etag: true,

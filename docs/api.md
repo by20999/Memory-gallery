@@ -24,7 +24,7 @@ X-Admin-Password: <DELETE_PASSWORD>
 ```json
 {
   "ok": true,
-  "service": "family-photo-gallery"
+  "service": "Memory-gallery"
 }
 ```
 

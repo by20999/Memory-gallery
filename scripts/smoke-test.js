@@ -72,7 +72,7 @@ async function waitForServer() {
 }
 
 (async () => {
-    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'family-photo-gallery-smoke-'));
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'Memory-gallery-smoke-'));
     const child = spawn(process.execPath, ['server.js'], {
         cwd: process.cwd(),
         env: {

@@ -1,5 +1,5 @@
 {
-  "name": "family-photo-gallery",
+  "name": "Memory-gallery",
   "version": "1.0.0",
   "description": "共享相册网站",
   "main": "server.js",
