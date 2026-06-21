@@ -53,7 +53,7 @@
     storyShowcasePrevBtn: document.getElementById('storyShowcasePrevBtn'),
     storyShowcaseNextBtn: document.getElementById('storyShowcaseNextBtn'),
     storyShowcaseAutoplayBtn: document.getElementById('storyShowcaseAutoplayBtn'),
-    storyShowcaseSpeedInput: document.getElementById('storyShowcaseSpeedInput'),
+    storyShowcaseSpeedButtons: [...document.querySelectorAll('[data-showcase-speed-level]')],
     storyShowcaseSpeedValue: document.getElementById('storyShowcaseSpeedValue'),
     storyShowcaseResetBtn: document.getElementById('storyShowcaseResetBtn'),
     storyShowcaseCloseBtn: document.getElementById('storyShowcaseCloseBtn'),

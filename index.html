@@ -424,10 +424,14 @@
                     <button id="storyShowcasePrevBtn" type="button">看更早</button>
                     <button id="storyShowcaseNextBtn" type="button">看更晚</button>
                     <button id="storyShowcaseAutoplayBtn" type="button" aria-pressed="false">自动播放</button>
-                    <label class="story-showcase-speed-control">
-                        <span>播放速度 <output id="storyShowcaseSpeedValue">54</output></span>
-                        <input id="storyShowcaseSpeedInput" type="range" min="50" max="72" step="2" value="54">
-                    </label>
+                    <div class="story-showcase-speed-control" role="group" aria-label="播放速度">
+                        <span>播放速度 <output id="storyShowcaseSpeedValue">中速</output></span>
+                        <div class="story-showcase-speed-options">
+                            <button type="button" data-showcase-speed-level="slow" aria-pressed="false">低速</button>
+                            <button type="button" data-showcase-speed-level="medium" aria-pressed="true">中速</button>
+                            <button type="button" data-showcase-speed-level="fast" aria-pressed="false">高速</button>
+                        </div>
+                    </div>
                     <button id="storyShowcaseResetBtn" type="button">回到开头</button>
                     <button id="storyShowcaseCloseBtn" type="button">退出展示</button>
                 </div>

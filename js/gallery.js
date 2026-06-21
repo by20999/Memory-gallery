@@ -991,8 +991,8 @@ function getSelectableVisiblePhotos() {
     return state.visiblePhotos.slice(pageStart, pageEnd).filter((photo) => !photo.isLocalPreview);
 }
 
-function syncBatchSelectionToVisible() {
-    const visibleIds = new Set(getSelectableVisiblePhotos().map((photo) => photo.id));
+function syncBatchSelectionToCurrentResults() {
+    const visibleIds = new Set(state.visiblePhotos.filter((photo) => !photo.isLocalPreview).map((photo) => photo.id));
     [...state.selectedIds].forEach((photoId) => {
         if (!visibleIds.has(photoId)) state.selectedIds.delete(photoId);
     });
@@ -1012,7 +1012,7 @@ function updateBatchCount() {
     dom.batchGroupBtn.disabled = disabled;
     dom.batchCaptionBtn.disabled = disabled;
     dom.batchSelectAllBtn.disabled = selectableCount === 0;
-    dom.batchSelectAllBtn.textContent = areAllSelectablePhotosSelected() ? '\u53d6\u6d88\u5168\u9009' : '\u5168\u9009\u5f53\u524d\u7ed3\u679c';
+    dom.batchSelectAllBtn.textContent = areAllSelectablePhotosSelected() ? '取消本页全选' : '全选本页';
 }
 
 function bindCardFilterChips(container) {
@@ -1281,7 +1281,7 @@ export function renderGallery() {
     dom.gallery.classList.toggle('sorting-pending', state.reorderSaving);
     if (state.batchMode) {
         dom.gallery.classList.add('batch-mode');
-        syncBatchSelectionToVisible();
+        syncBatchSelectionToCurrentResults();
         updateBatchCount();
     } else {
         dom.gallery.classList.remove('batch-mode');
@@ -1343,7 +1343,6 @@ export function renderGallery() {
             hoverMeta.className = 'card-hover-meta';
             hoverMeta.innerHTML = `
                 <span class="card-date-badge">${escapeHtml(photoDateLabel)}</span>
-                ${photoDescription ? `<span class="card-caption-badge">${escapeHtml(photoDescription)}</span>` : ''}
             `;
 
             const cardFrame = document.createElement('span');
@@ -1501,7 +1500,7 @@ export function initGallery({ onOpenLightbox, onOpenBatchDeleteModal, onOpenGrou
         const selectablePhotos = getSelectableVisiblePhotos();
         const allSelected = selectablePhotos.length > 0
             && selectablePhotos.every((photo) => state.selectedIds.has(photo.id));
-        if (allSelected) state.selectedIds.clear();
+        if (allSelected) selectablePhotos.forEach((photo) => state.selectedIds.delete(photo.id));
         else selectablePhotos.forEach((photo) => state.selectedIds.add(photo.id));
         updateBatchCount();
         renderGallery();

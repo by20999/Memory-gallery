@@ -5,6 +5,7 @@ import { normalizeTags, formatUploadDate, escapeHtml } from './utils.js';
 import { getPhotoGroupName, applyTagFilter, applyGroupFilter, togglePhotoFavorite } from './gallery.js';
 import { renderComments, updateReactionUI } from './comments.js';
 import { showStatusNotice } from './feedback.js';
+import { promptAddPhotoToStory } from './story.js';
 
 let renderGalleryHandler = () => {};
 let openSingleDeleteModalHandler = () => {};
@@ -120,7 +121,12 @@ function renderLightboxStory(photo) {
                 </div>
                 <div class="story-header-actions">
                     ${groupName ? `<button class="story-edit-btn${isCurrentCover ? ' is-current' : ''}" type="button" data-set-group-cover="true" ${isCurrentCover ? 'disabled' : ''}>${isCurrentCover ? '当前封面' : '设为分组封面'}</button>` : ''}
-                    <button class="story-edit-btn" type="button" data-edit-details="true">${photo.caption || (photo.tags || []).length ? '编辑信息' : '添加信息'}</button>
+                    <button class="story-edit-btn" type="button" data-add-to-story="true">加入故事</button>
+                    <button class="story-edit-btn" type="button" data-edit-field="caption">${photo.caption ? '编辑描述' : '添加描述'}</button>
+                    <button class="story-edit-btn" type="button" data-edit-field="eventDate">${photo.eventDate ? '编辑日期' : '添加日期'}</button>
+                    <button class="story-edit-btn" type="button" data-edit-field="eventName">${photo.eventName ? '编辑事件' : '添加事件'}</button>
+                    <button class="story-edit-btn" type="button" data-edit-field="tags">${(photo.tags || []).length ? '编辑标签' : '添加标签'}</button>
+                    <button class="story-edit-btn subtle" type="button" data-edit-field="rename">重命名</button>
                 </div>
             </div>
             <div class="story-progress">
@@ -177,59 +183,8 @@ async function setCurrentPhotoAsGroupCover() {
     }
 }
 
-async function promptEditPhotoDetails() {
-    const photo = getCurrentPhoto();
-    if (!photo) return;
-
-    const rawCaption = window.prompt(
-        photo.caption ? '修改这张照片的描述，留空可以清除。' : '给这张照片补一句描述，留空表示暂时不写。',
-        photo.caption || ''
-    );
-    if (rawCaption === null) return;
-
-    const rawEventDate = window.prompt(
-        '给这张照片补一个事件日期，可写 2026-06-12、2026/6/12 或留空。',
-        photo.eventDate || ''
-    );
-    if (rawEventDate === null) return;
-
-    const rawEventName = window.prompt(
-        '给这张照片补一个事件名，例如：毕业、旅行、生日、live；留空可以清除。',
-        photo.eventName || ''
-    );
-    if (rawEventName === null) return;
-
-    const rawTags = window.prompt(
-        '给这张照片补充标签，多个标签可用逗号、顿号或空格分开；留空可清除。',
-        (photo.tags || []).join('\uFF0C')
-    );
-    if (rawTags === null) return;
-
-    const rawName = window.prompt(
-        '如果还想改图片名字，可以在这里输入新名字；留空或取消都会保持当前文件名。',
-        ''
-    );
-
-    const renameCandidate = String(rawName || '').trim().replace(/\.[^.]+$/u, '').trim();
-    const caption = rawCaption.trim().slice(0, 80);
-    const eventDate = rawEventDate.trim();
-    const eventName = rawEventName.trim().slice(0, 40);
-    const tags = normalizeTags(rawTags).slice(0, 12);
-    const currentName = String(photo.name || '').trim();
-    const shouldRename = Boolean(renameCandidate) && renameCandidate !== currentName;
-    const sameCaption = caption === (photo.caption || '');
-    const sameEventDate = eventDate === (photo.eventDate || '');
-    const sameEventName = eventName === (photo.eventName || '');
-    const sameTags = JSON.stringify(tags) === JSON.stringify(normalizeTags(photo.tags));
-    if (!shouldRename && sameCaption && sameEventDate && sameEventName && sameTags) {
-        showStatusNotice('\u7167\u7247\u4fe1\u606f\u6ca1\u6709\u53d8\u5316', { tone: 'info', duration: 1800 });
-        return;
-    }
-
+async function saveCurrentPhotoDetails(photo, payload, successMessage) {
     try {
-        const payload = { caption, eventDate, eventName, tags };
-        if (shouldRename) payload.renameTo = renameCandidate;
-
         const result = await updatePhotoDetails(photo.id, payload);
 
         if (result.photoId && result.photoId !== photo.id) {
@@ -241,7 +196,7 @@ async function promptEditPhotoDetails() {
                 return;
             }
             await openLightbox(nextIndex);
-            showStatusNotice('\u7167\u7247\u6587\u4ef6\u540d\u5df2\u66f4\u65b0', { tone: 'success' });
+            showStatusNotice(successMessage || '照片文件名已更新', { tone: 'success' });
             return;
         }
 
@@ -259,10 +214,90 @@ async function promptEditPhotoDetails() {
         const latestPhoto = syncCurrentPhotoIndex(photo.id);
         if (!latestPhoto) return;
         renderLightboxStory(latestPhoto);
-        showStatusNotice('\u7167\u7247\u4fe1\u606f\u5df2\u66f4\u65b0', { tone: 'success' });
+        showStatusNotice(successMessage || '照片信息已更新', { tone: 'success' });
     } catch (error) {
-        console.error('\u4fdd\u5b58\u56fe\u7247\u4fe1\u606f\u5931\u8d25:', error);
-        showStatusNotice(error.message || '\u4fdd\u5b58\u56fe\u7247\u4fe1\u606f\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5', { tone: 'error' });
+        console.error('保存图片信息失败:', error);
+        showStatusNotice(error.message || '保存图片信息失败，请重试', { tone: 'error' });
+    }
+}
+
+async function promptEditPhotoField(field) {
+    const photo = getCurrentPhoto();
+    if (!photo) return;
+
+    if (field === 'caption') {
+        const rawCaption = window.prompt(
+            photo.caption ? '修改这张照片的描述，留空可以清除。' : '给这张照片补一句描述，留空表示暂时不写。',
+            photo.caption || ''
+        );
+        if (rawCaption === null) return;
+        const caption = rawCaption.trim().slice(0, 80);
+        if (caption === (photo.caption || '')) {
+            showStatusNotice('描述没有变化', { tone: 'info', duration: 1600 });
+            return;
+        }
+        await saveCurrentPhotoDetails(photo, { caption }, '描述已更新');
+        return;
+    }
+
+    if (field === 'eventDate') {
+        const rawEventDate = window.prompt(
+            '补充事件日期，可写 2026-06-12、2026/6/12 或留空清除。',
+            photo.eventDate || ''
+        );
+        if (rawEventDate === null) return;
+        const eventDate = rawEventDate.trim();
+        if (eventDate === (photo.eventDate || '')) {
+            showStatusNotice('日期没有变化', { tone: 'info', duration: 1600 });
+            return;
+        }
+        await saveCurrentPhotoDetails(photo, { eventDate }, '事件日期已更新');
+        return;
+    }
+
+    if (field === 'eventName') {
+        const rawEventName = window.prompt(
+            '补充事件名，例如：毕业、旅行、生日、live；留空可以清除。',
+            photo.eventName || ''
+        );
+        if (rawEventName === null) return;
+        const eventName = rawEventName.trim().slice(0, 40);
+        if (eventName === (photo.eventName || '')) {
+            showStatusNotice('事件名没有变化', { tone: 'info', duration: 1600 });
+            return;
+        }
+        await saveCurrentPhotoDetails(photo, { eventName }, '事件名已更新');
+        return;
+    }
+
+    if (field === 'tags') {
+        const rawTags = window.prompt(
+            '补充标签，多个标签可用逗号、顿号或空格分开；留空可清除。',
+            (photo.tags || []).join('\uFF0C')
+        );
+        if (rawTags === null) return;
+        const tags = normalizeTags(rawTags).slice(0, 12);
+        if (JSON.stringify(tags) === JSON.stringify(normalizeTags(photo.tags))) {
+            showStatusNotice('标签没有变化', { tone: 'info', duration: 1600 });
+            return;
+        }
+        await saveCurrentPhotoDetails(photo, { tags }, '标签已更新');
+        return;
+    }
+
+    if (field === 'rename') {
+        const rawName = window.prompt(
+            '输入新的图片名称即可重命名；留空或取消会保持当前文件名。',
+            String(photo.name || '').replace(/\.[^.]+$/u, '')
+        );
+        if (rawName === null) return;
+        const renameTo = String(rawName || '').trim().replace(/\.[^.]+$/u, '').trim();
+        const currentName = String(photo.name || '').trim().replace(/\.[^.]+$/u, '').trim();
+        if (!renameTo || renameTo === currentName) {
+            showStatusNotice('文件名没有变化', { tone: 'info', duration: 1600 });
+            return;
+        }
+        await saveCurrentPhotoDetails(photo, { renameTo }, '照片文件名已更新');
     }
 }
 
@@ -407,10 +442,10 @@ export function initLightbox({ onRenderGallery, onOpenSingleDeleteModal, onLoadP
     });
 
     dom.photoStory.addEventListener('click', async (event) => {
-        const editBtn = event.target.closest('[data-edit-details]');
+        const editBtn = event.target.closest('[data-edit-field]');
         if (editBtn) {
             event.stopPropagation();
-            await promptEditPhotoDetails();
+            await promptEditPhotoField(editBtn.getAttribute('data-edit-field') || '');
             return;
         }
 
@@ -418,6 +453,15 @@ export function initLightbox({ onRenderGallery, onOpenSingleDeleteModal, onLoadP
         if (coverBtn) {
             event.stopPropagation();
             await setCurrentPhotoAsGroupCover();
+            return;
+        }
+
+        const addToStoryBtn = event.target.closest('[data-add-to-story]');
+        if (addToStoryBtn) {
+            event.stopPropagation();
+            const photo = getCurrentPhoto();
+            if (!photo) return;
+            await promptAddPhotoToStory(photo.id, { trigger: addToStoryBtn });
             return;
         }
 

@@ -15,18 +15,21 @@ import { refreshEnhancedSelects } from './select.js';
 import { escapeHtml, formatUploadDate, formatUploadMonth, normalizeTags } from './utils.js';
 
 const STORY_TIMELINE = {
-    step: 280,
-    height: 340,
-    padding: 116,
-    midY: 128,
+    step: 330,
+    height: 470,
+    padding: 136,
+    midY: 188,
     waveAmplitude: 18,
-    offsetAmplitude: 18,
+    offsetAmplitude: 26,
     maxOffset: 1,
-    minY: 98,
-    maxY: 188,
+    minY: 138,
+    maxY: 252,
     nudgeStep: 0.14
 };
 
+const STORY_NODE_DRAG_EDGE_SIZE = 112;
+const STORY_NODE_DRAG_SCROLL_MIN_SPEED = 180;
+const STORY_NODE_DRAG_SCROLL_MAX_SPEED = 760;
 const STORY_BACKGROUND_STORAGE_PREFIX = 'album_story_background_';
 const SHOWCASE_TEXT_LAYOUT_STORAGE_PREFIX = 'album_story_showcase_text_layout_';
 const SHOWCASE_TIMELINE = {
@@ -38,11 +41,15 @@ const SHOWCASE_TIMELINE = {
     autoplayTail: 980
 };
 
-const SHOWCASE_AUTOPLAY_SPEED_MIN = 50;
-const SHOWCASE_AUTOPLAY_SPEED_MAX = 72;
-const SHOWCASE_AUTOPLAY_SPEED_DEFAULT = 54;
+const SHOWCASE_AUTOPLAY_SPEED_DEFAULT_LEVEL = 'medium';
+const SHOWCASE_AUTOPLAY_SPEED_LEVELS = {
+    slow: { label: '低速', pixelsPerSecond: 28 },
+    medium: { label: '中速', pixelsPerSecond: 56 },
+    fast: { label: '高速', pixelsPerSecond: 128 }
+};
 const SHOWCASE_SUBTITLE_LIMIT = 36;
 const SHOWCASE_FOOTER_LIMIT = 96;
+const SHOWCASE_PETAL_COUNT = 44;
 
 let autosaveTimer = null;
 let viewportDragState = null;
@@ -50,29 +57,50 @@ let nodeDragState = null;
 let showcaseDragState = null;
 let showcaseTextDragState = null;
 let showcasePanY = 0;
-let showcaseAutoplaySpeed = SHOWCASE_AUTOPLAY_SPEED_DEFAULT;
+let showcaseAutoplaySpeedLevel = SHOWCASE_AUTOPLAY_SPEED_DEFAULT_LEVEL;
 let showcaseAutoplayFrame = 0;
 let showcaseAutoplayLastTime = 0;
 let storyChoiceState = null;
 const showcaseTextAutosaveTimers = new Map();
 
 const SHOWCASE_PAN_Y_LIMIT = 220;
+function renderShowcasePetals() {
+    return Array.from({ length: SHOWCASE_PETAL_COUNT }, () => '<i></i>').join('');
+}
+
+function dockShowcaseStaticLayer() {
+    if (!dom.storyShowcase || !dom.storyShowcaseTrack || !dom.storyShowcaseViewport) return;
+    Array.from(dom.storyShowcase.children)
+        .filter((child) => child.classList?.contains('story-showcase-static-layer'))
+        .forEach((child) => child.remove());
+    const staticLayer = dom.storyShowcaseTrack.querySelector('.story-showcase-static-layer');
+    if (staticLayer) {
+        dom.storyShowcase.insertBefore(staticLayer, dom.storyShowcaseViewport);
+    }
+}
+
 function clampShowcasePanY(value) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return 0;
     return Math.max(-SHOWCASE_PAN_Y_LIMIT, Math.min(SHOWCASE_PAN_Y_LIMIT, numeric));
 }
 
-function clampShowcaseAutoplaySpeed(value) {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return SHOWCASE_AUTOPLAY_SPEED_DEFAULT;
-    return Math.max(SHOWCASE_AUTOPLAY_SPEED_MIN, Math.min(SHOWCASE_AUTOPLAY_SPEED_MAX, numeric));
+function normalizeShowcaseAutoplaySpeedLevel(value) {
+    const key = String(value || '').trim();
+    return Object.prototype.hasOwnProperty.call(SHOWCASE_AUTOPLAY_SPEED_LEVELS, key)
+        ? key
+        : SHOWCASE_AUTOPLAY_SPEED_DEFAULT_LEVEL;
 }
 
-function updateShowcaseSpeedControl(value = showcaseAutoplaySpeed) {
-    showcaseAutoplaySpeed = clampShowcaseAutoplaySpeed(value);
-    if (dom.storyShowcaseSpeedInput) dom.storyShowcaseSpeedInput.value = String(showcaseAutoplaySpeed);
-    if (dom.storyShowcaseSpeedValue) dom.storyShowcaseSpeedValue.textContent = String(Math.round(showcaseAutoplaySpeed));
+function updateShowcaseSpeedControl(value = showcaseAutoplaySpeedLevel) {
+    showcaseAutoplaySpeedLevel = normalizeShowcaseAutoplaySpeedLevel(value);
+    const activeOption = SHOWCASE_AUTOPLAY_SPEED_LEVELS[showcaseAutoplaySpeedLevel];
+    dom.storyShowcaseSpeedButtons?.forEach((button) => {
+        const active = button.getAttribute('data-showcase-speed-level') === showcaseAutoplaySpeedLevel;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    if (dom.storyShowcaseSpeedValue) dom.storyShowcaseSpeedValue.textContent = activeOption.label;
     if (isShowcaseAutoplaying()) {
         window.cancelAnimationFrame(showcaseAutoplayFrame);
         showcaseAutoplayLastTime = performance.now();
@@ -99,7 +127,7 @@ function updateShowcaseAutoplayButton() {
 }
 
 function getShowcaseAutoplayPixelsPerSecond() {
-    return showcaseAutoplaySpeed;
+    return SHOWCASE_AUTOPLAY_SPEED_LEVELS[showcaseAutoplaySpeedLevel].pixelsPerSecond;
 }
 
 function stopShowcaseAutoplay() {
@@ -293,6 +321,38 @@ function getTargetInsertIndex(x, itemCount) {
     return Math.max(0, Math.min(itemCount - 1, rawIndex));
 }
 
+function getStoryViewportMaxScrollLeft() {
+    if (!dom.storyFlowViewport) return 0;
+    return Math.max(0, dom.storyFlowViewport.scrollWidth - dom.storyFlowViewport.clientWidth);
+}
+
+function getNodeDragAutoScrollSpeed(clientX) {
+    if (!dom.storyFlowViewport) return 0;
+    const maxScrollLeft = getStoryViewportMaxScrollLeft();
+    if (maxScrollLeft <= 0) return 0;
+
+    const viewport = dom.storyFlowViewport;
+    const rect = viewport.getBoundingClientRect();
+    if (!rect.width) return 0;
+
+    const edgeSize = Math.min(STORY_NODE_DRAG_EDGE_SIZE, rect.width * 0.28);
+    const leftZoneEnd = rect.left + edgeSize;
+    const rightZoneStart = rect.right - edgeSize;
+    const speedRange = STORY_NODE_DRAG_SCROLL_MAX_SPEED - STORY_NODE_DRAG_SCROLL_MIN_SPEED;
+
+    if (clientX < leftZoneEnd && viewport.scrollLeft > 0) {
+        const intensity = Math.max(0, Math.min(1, (leftZoneEnd - clientX) / edgeSize));
+        return -(STORY_NODE_DRAG_SCROLL_MIN_SPEED + speedRange * intensity);
+    }
+
+    if (clientX > rightZoneStart && viewport.scrollLeft < maxScrollLeft) {
+        const intensity = Math.max(0, Math.min(1, (clientX - rightZoneStart) / edgeSize));
+        return STORY_NODE_DRAG_SCROLL_MIN_SPEED + speedRange * intensity;
+    }
+
+    return 0;
+}
+
 function getCurveOffsetForPoint(index, y) {
     const basePoint = getBasePointForIndex(index);
     return roundStoryOffset((clampStoryPointY(y) - basePoint.y) / STORY_TIMELINE.offsetAmplitude);
@@ -338,10 +398,8 @@ function getShowcaseDateValue(photo) {
     return photo?.eventDate || photo?.uploadTime || '';
 }
 
-function getShowcaseYear(photo, index) {
-    const date = new Date(getShowcaseDateValue(photo));
-    if (!Number.isNaN(date.getTime())) return String(date.getFullYear());
-    return '未记录';
+function getShowcaseDateLabel(photo, index) {
+    return formatUploadMonth(getShowcaseDateValue(photo)) || '未记录';
 }
 
 function getShowcaseTitle(item, index) {
@@ -350,16 +408,16 @@ function getShowcaseTitle(item, index) {
     const note = String(item?.note || '').trim();
     const caption = String(photo.caption || '').trim();
     const source = eventName || note || caption;
-    if (source) return source.replace(/[，。！？,.!?].*$/, '').slice(0, 12);
+    if (source) return source;
     return '';
 }
 
 function getShowcaseLine(item, index) {
     const photo = item?.photo || {};
+    const eventName = String(photo.eventName || '').trim();
     const note = String(item?.note || '').trim();
     const caption = String(photo.caption || '').trim();
-    const source = note || caption;
-    if (source) return source;
+    if ((eventName || note) && caption && caption !== eventName && caption !== note) return caption;
     return '';
 }
 
@@ -574,7 +632,7 @@ function buildStoryCompactSelector(activeStory) {
     `;
 }
 
-function buildStoryNode(item, point, index) {
+function buildStoryNode(item, point, index, itemCount) {
     const photo = item.photo || {};
     const tags = (photo.tags || []).slice(0, 3).map((tag) => `<span class="story-node-tag">#${escapeHtml(tag)}</span>`).join('');
     const sourceLabel = item.sourceType === 'group' && item.sourceGroupName
@@ -585,14 +643,13 @@ function buildStoryNode(item, point, index) {
     const imageAlt = description || `故事片段 ${index + 1}`;
     const descriptionMarkup = description
         ? `
-                    <h4>${escapeHtml(shortDescription)}</h4>
-                    <p>${escapeHtml(description)}</p>`
+                    <h4>${escapeHtml(shortDescription)}</h4>`
         : '';
 
     return `
         <article class="story-node" data-story-item-id="${escapeHtml(item.id)}" data-story-item-index="${index}" style="left:${point.x}px; top:${point.y}px; animation-delay:${(index * 0.06).toFixed(2)}s;">
             <div class="story-node-controls">
-                <span class="story-node-order">${String(index + 1).padStart(2, '0')}</span>
+                <input class="story-node-order" type="number" min="1" max="${itemCount}" value="${index + 1}" inputmode="numeric" data-story-jump-item="${escapeHtml(item.id)}" aria-label="调整排序，范围 1 到 ${itemCount}" title="输入序号后按回车或离开输入框即可跳转">
                 <button class="story-node-handle" type="button" data-story-drag-handle="${escapeHtml(item.id)}">拖动</button>
                 <button class="story-adjust-btn" type="button" data-story-adjust="up" data-story-adjust-item="${escapeHtml(item.id)}">上移</button>
                 <button class="story-adjust-btn" type="button" data-story-adjust="down" data-story-adjust-item="${escapeHtml(item.id)}">下移</button>
@@ -618,7 +675,7 @@ function buildStoryNode(item, point, index) {
     `;
 }
 
-async function promptEditStoryPhotoDetails(photoId) {
+async function promptEditStoryPhotoDescription(photoId) {
     const story = getActiveStory();
     const item = story?.items?.find((entry) => entry.photo?.id === photoId || entry.photoId === photoId);
     const photo = item?.photo || state.photos.find((entry) => entry.id === photoId);
@@ -630,37 +687,13 @@ async function promptEditStoryPhotoDetails(photoId) {
     );
     if (rawCaption === null) return;
 
-    const rawEventDate = window.prompt(
-        '补充事件日期，可写 2026-06-12、2026/6/12 或留空。',
-        photo.eventDate || ''
-    );
-    if (rawEventDate === null) return;
-
-    const rawEventName = window.prompt(
-        '补充事件名，例如：毕业、旅行、生日、live；留空可以清除。',
-        photo.eventName || ''
-    );
-    if (rawEventName === null) return;
-
-    const rawTags = window.prompt(
-        '补充标签，多个标签可用逗号、顿号或空格分开；留空可清除。',
-        (photo.tags || []).join('，')
-    );
-    if (rawTags === null) return;
-
     const patch = {
-        caption: rawCaption.trim().slice(0, 80),
-        eventDate: rawEventDate.trim(),
-        eventName: rawEventName.trim().slice(0, 40),
-        tags: normalizeTags(rawTags).slice(0, 12)
+        caption: rawCaption.trim().slice(0, 80)
     };
 
     const sameCaption = patch.caption === (photo.caption || '');
-    const sameEventDate = patch.eventDate === (photo.eventDate || '');
-    const sameEventName = patch.eventName === (photo.eventName || '');
-    const sameTags = JSON.stringify(patch.tags) === JSON.stringify(normalizeTags(photo.tags));
-    if (sameCaption && sameEventDate && sameEventName && sameTags) {
-        showStatusNotice('图片信息没有变化', { tone: 'info', duration: 1600 });
+    if (sameCaption) {
+        showStatusNotice('描述没有变化', { tone: 'info', duration: 1600 });
         return;
     }
 
@@ -749,7 +782,7 @@ function renderStoryTimeline(story) {
             <path class="story-flow-line" d="${path}"></path>
         </svg>
         <div class="story-flow-drop-guide" hidden><span></span></div>
-        ${items.map((item, index) => buildStoryNode(item, points[index], index)).join('')}
+        ${items.map((item, index) => buildStoryNode(item, points[index], index, items.length)).join('')}
     `;
     dom.storyFlowViewport.scrollLeft = Math.min(previousScrollLeft, Math.max(0, width - dom.storyFlowViewport.clientWidth));
 }
@@ -1060,7 +1093,7 @@ function buildShowcaseFrame(item, index) {
     const placement = lane.className;
     const tilt = lane.tilt;
     const itemY = point.y + lane.offset;
-    const year = getShowcaseYear(photo, index);
+    const dateLabel = getShowcaseDateLabel(photo, index);
     const title = getShowcaseTitle(item, index);
     const line = getShowcaseLine(item, index);
     const imageAlt = line || title || formatUploadDate(photo.uploadTime) || `故事片段 ${index + 1}`;
@@ -1076,7 +1109,7 @@ function buildShowcaseFrame(item, index) {
     return `
         <article class="story-showcase-item ${placement}" style="left:${point.x}px; top:${itemY}px; --tilt:${tilt}deg; --item-delay:${index * 0.1}s;">
             <div class="story-showcase-time">
-                <span>${escapeHtml(year)}</span>
+                <span>${escapeHtml(dateLabel)}</span>
             </div>
             ${captionBefore}
             <div class="story-showcase-frame">
@@ -1147,8 +1180,7 @@ function renderShowcase(story) {
                     <i></i><i></i><i></i><i></i><i></i><i></i>
                 </div>
                 <div class="story-showcase-petals">
-                    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-                    <i></i><i></i><i></i><i></i>
+                    ${renderShowcasePetals()}
                 </div>
             </div>
             <div class="story-showcase-timeline-layer">
@@ -1192,6 +1224,7 @@ function renderShowcase(story) {
                 <span>回到相册，把想讲述的图片加入故事后再打开全屏展示。</span>
             </div>
         `;
+    dockShowcaseStaticLayer();
     applyShowcaseTextLayout(story);
 }
 
@@ -1258,7 +1291,43 @@ async function handleStoryAdjust(itemId, direction) {
     showStatusNotice('故事节点位置已更新', { tone: 'success', duration: 1400 });
 }
 
+async function handleStoryOrderJump(input) {
+    const itemId = input?.getAttribute('data-story-jump-item') || '';
+    const { story, item, index } = getActiveStoryItem(itemId);
+    if (!story || !item || index < 0) return;
+
+    const itemCount = story.items.length;
+    const targetOrder = Number(input.value);
+    if (!Number.isInteger(targetOrder) || targetOrder < 1 || targetOrder > itemCount) {
+        input.value = String(index + 1);
+        showStatusNotice(`请输入 1-${itemCount} 之间的序号`, { tone: 'error', duration: 2200 });
+        return;
+    }
+
+    const targetIndex = targetOrder - 1;
+    if (targetIndex === index) {
+        input.value = String(index + 1);
+        return;
+    }
+
+    const previousStory = cloneStory(story);
+    const nextStory = buildStoryAfterItemMove(story, itemId, targetIndex, item.curveOffset || 0);
+    if (!hasLayoutChanged(previousStory, nextStory)) return;
+
+    updateActiveStory(nextStory);
+    renderStoryView();
+    const nextPoint = getBasePointForIndex(targetIndex);
+    const viewportPadding = Math.max(0, (dom.storyFlowViewport?.clientWidth || 0) * 0.38);
+    dom.storyFlowViewport?.scrollTo({
+        left: Math.max(0, nextPoint.x - viewportPadding),
+        behavior: 'smooth'
+    });
+    await persistStoryLayout(nextStory, previousStory);
+    showStatusNotice(`已移动到第 ${targetOrder} 张`, { tone: 'success', duration: 1500 });
+}
+
 function cleanupNodeDrag() {
+    stopNodeDragAutoScroll();
     window.removeEventListener('pointermove', handleNodeDragMove);
     window.removeEventListener('pointerup', handleNodeDragEnd);
     window.removeEventListener('pointercancel', handleNodeDragCancel);
@@ -1269,12 +1338,11 @@ function cleanupNodeDrag() {
     nodeDragState = null;
 }
 
-function handleNodeDragMove(event) {
-    if (!nodeDragState || event.pointerId !== nodeDragState.pointerId) return;
-    event.preventDefault();
-
-    const nextX = clampStoryPointX(nodeDragState.startPoint.x + (event.clientX - nodeDragState.startClientX), nodeDragState.itemCount);
-    const nextY = clampStoryPointY(nodeDragState.startPoint.y + (event.clientY - nodeDragState.startClientY));
+function updateNodeDragPreview(clientX, clientY) {
+    if (!nodeDragState) return;
+    const scrollDeltaX = (dom.storyFlowViewport?.scrollLeft || 0) - (nodeDragState.startScrollLeft || 0);
+    const nextX = clampStoryPointX(nodeDragState.startPoint.x + (clientX - nodeDragState.startClientX) + scrollDeltaX, nodeDragState.itemCount);
+    const nextY = clampStoryPointY(nodeDragState.startPoint.y + (clientY - nodeDragState.startClientY));
     nodeDragState.previewPoint = { x: nextX, y: nextY };
 
     const activeNode = dom.storyFlowSurface?.querySelector(`[data-story-item-id="${nodeDragState.itemId}"]`);
@@ -1295,6 +1363,84 @@ function handleNodeDragMove(event) {
     if (dom.storyTimelineMeta) {
         dom.storyTimelineMeta.textContent = buildDragMetaText(targetIndex, curveOffset);
     }
+}
+
+function updateNodeDragAutoScrollClasses(speed) {
+    if (!dom.storyFlowViewport) return;
+    dom.storyFlowViewport.classList.toggle('auto-scrolling-left', speed < 0);
+    dom.storyFlowViewport.classList.toggle('auto-scrolling-right', speed > 0);
+}
+
+function stopNodeDragAutoScroll() {
+    if (nodeDragState?.autoScrollFrame) {
+        window.cancelAnimationFrame(nodeDragState.autoScrollFrame);
+        nodeDragState.autoScrollFrame = 0;
+    }
+    if (nodeDragState) {
+        nodeDragState.autoScrollSpeed = 0;
+        nodeDragState.autoScrollLastTime = 0;
+    }
+    updateNodeDragAutoScrollClasses(0);
+}
+
+function stepNodeDragAutoScroll(timestamp) {
+    if (!nodeDragState || !dom.storyFlowViewport) return;
+
+    const speed = getNodeDragAutoScrollSpeed(nodeDragState.lastClientX);
+    nodeDragState.autoScrollSpeed = speed;
+    updateNodeDragAutoScrollClasses(speed);
+
+    if (!speed) {
+        nodeDragState.autoScrollFrame = 0;
+        nodeDragState.autoScrollLastTime = 0;
+        return;
+    }
+
+    const lastTime = nodeDragState.autoScrollLastTime || timestamp;
+    const elapsed = Math.min(64, Math.max(0, timestamp - lastTime));
+    nodeDragState.autoScrollLastTime = timestamp;
+
+    const viewport = dom.storyFlowViewport;
+    const maxScrollLeft = getStoryViewportMaxScrollLeft();
+    const nextScrollLeft = Math.max(0, Math.min(maxScrollLeft, viewport.scrollLeft + (speed * elapsed) / 1000));
+
+    if (Math.abs(nextScrollLeft - viewport.scrollLeft) > 0.1) {
+        viewport.scrollLeft = nextScrollLeft;
+        updateNodeDragPreview(nodeDragState.lastClientX, nodeDragState.lastClientY);
+    }
+
+    nodeDragState.autoScrollFrame = window.requestAnimationFrame(stepNodeDragAutoScroll);
+}
+
+function queueNodeDragAutoScroll(clientX) {
+    if (!nodeDragState) return;
+    const speed = getNodeDragAutoScrollSpeed(clientX);
+    nodeDragState.autoScrollSpeed = speed;
+    updateNodeDragAutoScrollClasses(speed);
+
+    if (!speed) {
+        if (nodeDragState.autoScrollFrame) {
+            window.cancelAnimationFrame(nodeDragState.autoScrollFrame);
+            nodeDragState.autoScrollFrame = 0;
+        }
+        nodeDragState.autoScrollLastTime = 0;
+        return;
+    }
+
+    if (!nodeDragState.autoScrollFrame) {
+        nodeDragState.autoScrollLastTime = performance.now();
+        nodeDragState.autoScrollFrame = window.requestAnimationFrame(stepNodeDragAutoScroll);
+    }
+}
+
+function handleNodeDragMove(event) {
+    if (!nodeDragState || event.pointerId !== nodeDragState.pointerId) return;
+    event.preventDefault();
+
+    nodeDragState.lastClientX = event.clientX;
+    nodeDragState.lastClientY = event.clientY;
+    updateNodeDragPreview(event.clientX, event.clientY);
+    queueNodeDragAutoScroll(event.clientX);
 }
 
 async function finalizeNodeDrag() {
@@ -1352,6 +1498,12 @@ function startNodeDrag(event, handle) {
         previewPoint: points[index],
         startClientX: event.clientX,
         startClientY: event.clientY,
+        lastClientX: event.clientX,
+        lastClientY: event.clientY,
+        startScrollLeft: dom.storyFlowViewport?.scrollLeft || 0,
+        autoScrollSpeed: 0,
+        autoScrollFrame: 0,
+        autoScrollLastTime: 0,
         handle
     };
 
@@ -1861,7 +2013,7 @@ export function initStory() {
             event.preventDefault();
             event.stopPropagation();
             const photoId = editPhotoBtn.getAttribute('data-story-edit-photo') || '';
-            if (photoId) await promptEditStoryPhotoDetails(photoId);
+            if (photoId) await promptEditStoryPhotoDescription(photoId);
             return;
         }
 
@@ -1896,6 +2048,33 @@ export function initStory() {
         }
     });
 
+    dom.storyStage?.addEventListener('change', async (event) => {
+        const orderInput = event.target.closest('[data-story-jump-item]');
+        if (!orderInput) return;
+        await handleStoryOrderJump(orderInput);
+    });
+
+    dom.storyStage?.addEventListener('keydown', (event) => {
+        const orderInput = event.target.closest('[data-story-jump-item]');
+        if (!orderInput) return;
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            orderInput.blur();
+            return;
+        }
+        if (event.key === 'Escape') {
+            const { index } = getActiveStoryItem(orderInput.getAttribute('data-story-jump-item') || '');
+            if (index >= 0) orderInput.value = String(index + 1);
+            orderInput.blur();
+        }
+    });
+
+    dom.storyStage?.addEventListener('focusin', (event) => {
+        const orderInput = event.target.closest('[data-story-jump-item]');
+        if (!orderInput) return;
+        orderInput.select();
+    });
+
     dom.storyStage?.addEventListener('pointerdown', (event) => {
         const handle = event.target.closest('[data-story-drag-handle]');
         if (!handle) return;
@@ -1920,8 +2099,10 @@ export function initStory() {
         toggleShowcaseAutoplay();
     });
 
-    dom.storyShowcaseSpeedInput?.addEventListener('input', () => {
-        updateShowcaseSpeedControl(dom.storyShowcaseSpeedInput.value);
+    dom.storyShowcaseSpeedButtons?.forEach((button) => {
+        button.addEventListener('click', () => {
+            updateShowcaseSpeedControl(button.getAttribute('data-showcase-speed-level'));
+        });
     });
 
     dom.storyShowcaseResetBtn?.addEventListener('click', () => {

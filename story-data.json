@@ -8,59 +8,379 @@
       "showcaseSubtitle": "",
       "showcaseFooter": "",
       "backgroundPhotoId": "Snipaste_2026-04-12_12-35-33.png",
-      "backgroundOpacity": 0.55,
+      "backgroundOpacity": 0.5,
       "createdAt": "2026-06-12T07:16:20.980Z",
-      "updatedAt": "2026-06-15T10:40:12.054Z",
+      "updatedAt": "2026-06-19T11:13:24.405Z",
       "items": [
         {
-          "id": "story-item-mqdhb2yd-chasam",
-          "photoId": "Snipaste_2026-04-17_20-13-06.png",
+          "id": "story-item-mqi1bl1u-i2x5hg",
+          "photoId": "Snipaste_2026-04-19_11-10-25.png",
           "position": 0,
           "curveOffset": 0.18,
           "note": "",
           "sourceType": "photo",
           "sourceGroupName": "",
-          "createdAt": "2026-06-14T07:44:41.653Z"
+          "createdAt": "2026-06-17T12:16:02.130Z"
         },
         {
-          "id": "story-item-mqdhb4c9-x0f6jz",
-          "photoId": "Snipaste_2026-04-17_20-16-07.png",
+          "id": "story-item-mqi1d8ix-xyohra",
+          "photoId": "Snipaste_2026-04-19_11-10-48.png",
           "position": 1,
           "curveOffset": -0.22,
           "note": "",
           "sourceType": "photo",
           "sourceGroupName": "",
-          "createdAt": "2026-06-14T07:44:43.449Z"
+          "createdAt": "2026-06-17T12:17:19.209Z"
         },
         {
-          "id": "story-item-mqdhb5du-lih1wi",
-          "photoId": "Snipaste_2026-04-17_20-17-10.png",
+          "id": "story-item-mqi1edfd-r6ab4k",
+          "photoId": "Snipaste_2026-04-19_11-11-03.png",
           "position": 2,
           "curveOffset": 0.3,
           "note": "",
           "sourceType": "photo",
           "sourceGroupName": "",
-          "createdAt": "2026-06-14T07:44:44.802Z"
+          "createdAt": "2026-06-17T12:18:12.217Z"
         },
         {
-          "id": "story-item-mqdhb60i-upb0dz",
-          "photoId": "Snipaste_2026-04-16_23-09-28.png",
+          "id": "story-item-mqi1f22g-fexe0x",
+          "photoId": "Snipaste_2026-04-02_13-18-12.png",
           "position": 3,
           "curveOffset": -0.12,
           "note": "",
           "sourceType": "photo",
           "sourceGroupName": "",
-          "createdAt": "2026-06-14T07:44:45.618Z"
+          "createdAt": "2026-06-17T12:18:44.152Z"
         },
         {
-          "id": "story-item-mqdhb7e2-3wujcn",
-          "photoId": "Snipaste_2026-04-16_23-15-28.png",
+          "id": "story-item-mqi1jull-4kpoh4",
+          "photoId": "Snipaste_2026-04-19_11-11-26.png",
           "position": 4,
           "curveOffset": 0.24,
           "note": "",
           "sourceType": "photo",
           "sourceGroupName": "",
-          "createdAt": "2026-06-14T07:44:47.402Z"
+          "createdAt": "2026-06-17T12:22:27.753Z"
+        },
+        {
+          "id": "story-item-mqkj69go-6h8b3g",
+          "photoId": "Snipaste_2026-04-19_11-12-45.png",
+          "position": 5,
+          "curveOffset": -0.28,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T06:11:19.272Z"
+        },
+        {
+          "id": "story-item-mqkjaldy-xcmqmw",
+          "photoId": "Snipaste_2026-04-04_12-57-29.png",
+          "position": 6,
+          "curveOffset": 0.08,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T06:14:41.350Z"
+        },
+        {
+          "id": "story-item-mqkjbbge-4rry9m",
+          "photoId": "Snipaste_2026-04-19_11-12-11.png",
+          "position": 7,
+          "curveOffset": -0.18,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T06:15:15.134Z"
+        },
+        {
+          "id": "story-item-mqkjcmdi-on31jy",
+          "photoId": "Snipaste_2026-04-19_11-11-53.png",
+          "position": 8,
+          "curveOffset": 0.18,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T06:16:15.942Z"
+        },
+        {
+          "id": "story-item-mqkjdehh-phov9e",
+          "photoId": "Snipaste_2026-04-19_11-14-43.png",
+          "position": 9,
+          "curveOffset": -0.22,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T06:16:52.373Z"
+        },
+        {
+          "id": "story-item-mqkjdqvh-84rfrl",
+          "photoId": "Snipaste_2026-04-19_11-14-58.png",
+          "position": 10,
+          "curveOffset": 0.3,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T06:17:08.429Z"
+        },
+        {
+          "id": "story-item-mqkslc4e-dqwvew",
+          "photoId": "Snipaste_2026-04-19_11-13-43.png",
+          "position": 11,
+          "curveOffset": -0.12,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T10:34:59.102Z"
+        },
+        {
+          "id": "story-item-mqkswxke-iru992",
+          "photoId": "Snipaste_2026-04-08_19-23-47.png",
+          "position": 12,
+          "curveOffset": -0.38,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T10:44:00.110Z"
+        },
+        {
+          "id": "story-item-mqksyllq-rhj3pm",
+          "photoId": "Snipaste_2026-04-08_19-25-24.png",
+          "position": 13,
+          "curveOffset": -0.24,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T10:45:17.918Z"
+        },
+        {
+          "id": "story-item-mqksxdj9-4fcnvd",
+          "photoId": "Snipaste_2026-04-08_19-25-41.png",
+          "position": 14,
+          "curveOffset": -0.84,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T10:44:20.805Z"
+        },
+        {
+          "id": "story-item-mqksxwul-p7cex9",
+          "photoId": "Snipaste_2026-04-08_19-25-51.png",
+          "position": 15,
+          "curveOffset": -0.03,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T10:44:45.838Z"
+        },
+        {
+          "id": "story-item-mqkspj91-0echhe",
+          "photoId": "Snipaste_2026-04-08_19-11-59.png",
+          "position": 16,
+          "curveOffset": 0.09,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T10:38:14.965Z"
+        },
+        {
+          "id": "story-item-mqksmt5i-yhy5i3",
+          "photoId": "Snipaste_2026-04-19_11-15-56.png",
+          "position": 17,
+          "curveOffset": 0.24,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T10:36:07.830Z"
+        },
+        {
+          "id": "story-item-mqksn5pi-nmn2nt",
+          "photoId": "Snipaste_2026-04-19_11-16-01.png",
+          "position": 18,
+          "curveOffset": -0.28,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T10:36:24.102Z"
+        },
+        {
+          "id": "story-item-mqkso43k-5a7xy1",
+          "photoId": "Snipaste_2026-04-19_11-15-23.png",
+          "position": 19,
+          "curveOffset": 0.08,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T10:37:08.672Z"
+        },
+        {
+          "id": "story-item-mqksqp99-dqsy4h",
+          "photoId": "Snipaste_2026-04-07_22-11-21.png",
+          "position": 20,
+          "curveOffset": 0.18,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T10:39:09.405Z"
+        },
+        {
+          "id": "story-item-mqkszqh2-ixuva7",
+          "photoId": "Snipaste_2026-04-11_22-37-26.png",
+          "position": 21,
+          "curveOffset": -0.78,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T10:46:10.886Z"
+        },
+        {
+          "id": "story-item-mqkssgp1-dnml0z",
+          "photoId": "Snipaste_2026-04-19_11-25-24.png",
+          "position": 22,
+          "curveOffset": -0.22,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T10:40:31.621Z"
+        },
+        {
+          "id": "story-item-mqkssz1p-67sprl",
+          "photoId": "Snipaste_2026-04-19_11-24-38.png",
+          "position": 23,
+          "curveOffset": 0.3,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T10:40:55.405Z"
+        },
+        {
+          "id": "story-item-mqkt11qd-auwasj",
+          "photoId": "Snipaste_2026-04-12_11-45-00.png",
+          "position": 24,
+          "curveOffset": 0.18,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T10:47:12.133Z"
+        },
+        {
+          "id": "story-item-mqktlum6-pt4pfm",
+          "photoId": "Snipaste_2026-04-11_17-12-06.png",
+          "position": 25,
+          "curveOffset": -0.22,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T11:03:22.686Z"
+        },
+        {
+          "id": "story-item-mqktmif2-s6ec0i",
+          "photoId": "Snipaste_2026-04-11_17-13-57.png",
+          "position": 26,
+          "curveOffset": 0.3,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T11:03:53.534Z"
+        },
+        {
+          "id": "story-item-mqktn6bg-18yt0t",
+          "photoId": "Snipaste_2026-04-19_11-26-49.png",
+          "position": 27,
+          "curveOffset": -0.12,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T11:04:24.508Z"
+        },
+        {
+          "id": "story-item-mqktt2np-cpyd4j",
+          "photoId": "Snipaste_2026-04-11_22-44-59.png",
+          "position": 28,
+          "curveOffset": 0.24,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T11:08:59.701Z"
+        },
+        {
+          "id": "story-item-mqktu9ct-1fwrqx",
+          "photoId": "Snipaste_2026-04-11_22-44-09.png",
+          "position": 29,
+          "curveOffset": -0.28,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T11:09:55.037Z"
+        },
+        {
+          "id": "story-item-mqktuhjk-3w34tt",
+          "photoId": "Snipaste_2026-04-11_22-44-13.png",
+          "position": 30,
+          "curveOffset": 0.08,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T11:10:05.648Z"
+        },
+        {
+          "id": "story-item-mqktutjz-tmstq4",
+          "photoId": "Snipaste_2026-04-11_22-44-21.png",
+          "position": 31,
+          "curveOffset": -0.18,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T11:10:21.215Z"
+        },
+        {
+          "id": "story-item-mqktw4np-a7v5tj",
+          "photoId": "Snipaste_2026-04-11_22-44-25.png",
+          "position": 32,
+          "curveOffset": 0.18,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T11:11:22.261Z"
+        },
+        {
+          "id": "story-item-mqktwz6t-huldvk",
+          "photoId": "Snipaste_2026-04-11_22-46-06.png",
+          "position": 33,
+          "curveOffset": -0.22,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T11:12:01.829Z"
+        },
+        {
+          "id": "story-item-mqktxqww-9imzjb",
+          "photoId": "Snipaste_2026-04-11_22-46-13.png",
+          "position": 34,
+          "curveOffset": 0.3,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T11:12:37.760Z"
+        },
+        {
+          "id": "story-item-mqktyd6d-53mb0r",
+          "photoId": "Snipaste_2026-04-11_22-46-51.png",
+          "position": 35,
+          "curveOffset": -0.12,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T11:13:06.613Z"
+        },
+        {
+          "id": "story-item-mqktyqwl-6kargm",
+          "photoId": "Snipaste_2026-04-11_22-46-57.png",
+          "position": 36,
+          "curveOffset": 0.24,
+          "note": "",
+          "sourceType": "photo",
+          "sourceGroupName": "",
+          "createdAt": "2026-06-19T11:13:24.405Z"
         }
       ]
     }
